@@ -1,5 +1,7 @@
 "use client";
 
+"fixed"
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Database, CheckCircle2, AlertCircle } from 'lucide-react';
