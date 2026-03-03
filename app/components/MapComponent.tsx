@@ -66,7 +66,7 @@ function RiverLayer({ data }: { data: any }) {
       style={(feature) => {
         const type = feature?.properties?.waterway
         return {
-          color: '#7AB1FF',
+          color: '#00ADE3',
           weight: type === 'river' ? 3 : type === 'canal' ? 2 : 1,
           opacity: type === 'river' ? 0.9 : 0.6,
           lineCap: 'round',
@@ -188,9 +188,11 @@ export default function MapComponent({ activeLayer }: { activeLayer: LayerType }
             data={provinceData}
             style={{
               color: '#E3E3E3',
-              weight: 4.3,
-              opacity: 1,
-              fillOpacity: 0
+              weight: 3,
+              opacity: 0.8,
+              fillOpacity: 0,
+              dashArray: '10 15',
+              lineCap: 'round',
             }}
           />
         )}
