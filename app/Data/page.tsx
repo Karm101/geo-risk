@@ -6,15 +6,15 @@ import UploadButton from '../components/UploadButton';
 import DataTable from '../components/DataTable';
 import DatabaseMonitor from '../components/DatabaseMonitor';
 import DatabaseStatusCard from '../components/DatabaseStatusCard';
+// 1. IMPORT THE NEW COMPONENT
+import BatchHistory from '../components/BatchHistory';
 
 export default function DataManagement() {
   return (
     <div className="flex min-h-screen bg-gray-950">
       <GeoRiskSidebar />
 
-      {/* Make main a flex column and allow shrinking */}
       <main className="flex-1 min-h-0 flex flex-col overflow-auto">
-        {/* This wrapper also needs to be flex/column + min-h-0 */}
         <div className="p-8 flex flex-col gap-8">
           {/* Header */}
           <div>
@@ -22,7 +22,7 @@ export default function DataManagement() {
             <p className="text-gray-400">Upload and manage sampling data</p>
           </div>
 
-          {/* Upload Section */}
+          {/* Upload Section (Cards) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Card */}
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-xl">
@@ -54,10 +54,13 @@ export default function DataManagement() {
             </div>
           </div>
 
+          {/* 2. INSERT BATCH HISTORY HERE */}
+          <BatchHistory />
+
           {/* Real-time PostGIS Pipeline Monitor */}
           <DatabaseMonitor />
 
-          {/* Sampling Data Table - this should occupy remaining height and scroll inside */}
+          {/* Sampling Data Table */}
           <div className="mt-4 flex-1 min-h-0">
             <DataTable />
           </div>
