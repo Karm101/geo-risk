@@ -2,15 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { Circle, CheckCircle, Archive, History, Calendar, FileText, Layers } from 'lucide-react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useBatch } from '../context/BatchContext'
 
 export default function BatchHistory() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const urlBatch = searchParams.get('batch')
-
   const [batches, setBatches] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  const { selectedBatch, setSelectedBatch } = useBatch()
 
   useEffect(() => {
     fetchBatches(true) // Show loading text ONLY on the first load
@@ -38,16 +36,15 @@ export default function BatchHistory() {
   }
 
   // Determine the active batch from the URL or default to the most recent one
-  const activeBatchId = urlBatch || (batches.length > 0 ? batches[0].batch_id : null)
+  const activeBatchId = selectedBatch || (batches.length > 0 ? batches[0].batch_id : null)
 
   const handleSelect = (id: string) => {
-    // If clicking the already selected row we can clear the URL to reset to default
-    if (id === urlBatch) {
-      router.push('?', { scroll: false })
-    } else {
-      router.push(`?batch=${id}`, { scroll: false })
-    }
-  }
+      if (id === selectedBatch) {
+         setSelectedBatch(batches[0]?.batch_id ?? '')
+      } else {
+         setSelectedBatch(id)
+      }
+   }
 
   const handleArchive = async (batchId: string, e: React.MouseEvent) => {
     e.stopPropagation() 
@@ -68,9 +65,9 @@ export default function BatchHistory() {
         setBatches(batches.filter(b => b.batch_id !== batchId))
         
         // If the user archives the batch they are currently viewing we reset the URL
-        if (urlBatch === batchId) {
-          router.push('?', { scroll: false })
-        }
+        if (selectedBatch === batchId) {
+         setSelectedBatch(batches[0]?.batch_id ?? '')
+         }
       } else {
         alert("Failed to archive batch.")
       }

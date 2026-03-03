@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FileText } from 'lucide-react'
-import { useSearchParams } from 'next/navigation' // 1. Import URL listener
 import ExportCSVButton from './ExportCSVButton'
+import { useBatch } from '../context/BatchContext'
 
 const METALS = [
   { id: 'cr', label: 'CR' }, { id: 'mn', label: 'MN' }, { id: 'fe', label: 'FE' },
@@ -20,8 +19,7 @@ export default function DataTable() {
   const [currentPage, setCurrentPage] = useState(1) // 2. State for our current page
 
   // 3. Listen to the URL to know which batch to fetch
-  const searchParams = useSearchParams()
-  const activeBatch = searchParams.get('batch')
+  const { selectedBatch: activeBatch } = useBatch()
 
   useEffect(() => {
     async function loadData() {

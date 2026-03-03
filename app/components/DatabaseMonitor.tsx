@@ -2,12 +2,11 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { Database, Activity, Layers, ServerCrash, Hash, ChevronDown } from 'lucide-react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useBatch } from '../context/BatchContext'
 
 export default function DatabaseMonitor() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const urlBatch = searchParams.get('batch')
+  
+  const { selectedBatch, setSelectedBatch, allBatches: contextBatches } = useBatch()
 
   const [stats, setStats] = useState({
     status: 'Connecting...',
@@ -48,12 +47,13 @@ export default function DatabaseMonitor() {
   }, [])
 
   const isConnected = stats.status === 'Connected'
-  const displayBatch = urlBatch || stats.latestBatch
+  const displayBatch = selectedBatch || stats.latestBatch
 
   const handleSelectBatch = (batchId: string) => {
     setIsDropdownOpen(false)
-    router.push(`?batch=${batchId}`, { scroll: false })
+    setSelectedBatch(batchId)
   }
+
 
   return (
     <div className={`border-2 border-dashed rounded-xl p-8 transition-colors duration-500 flex flex-col items-center text-center ${
@@ -87,10 +87,10 @@ export default function DatabaseMonitor() {
             <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {isDropdownOpen && stats.allBatches.length > 0 && (
+          {isDropdownOpen && contextBatches.length > 0 && (
             <div className="absolute top-full mt-2 w-max max-w-[300px] bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden left-1/2 -translate-x-1/2">
               <div className="max-h-48 overflow-y-auto custom-scrollbar">
-                {stats.allBatches.map((batchId: string) => (
+                {contextBatches.map((batchId: string) => (
                   <button
                     key={batchId}
                     onClick={() => handleSelectBatch(batchId)}
