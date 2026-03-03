@@ -14,6 +14,10 @@ export default function BatchHistory() {
 
   useEffect(() => {
     fetchBatches()
+    
+    // Add the polling interval so it stays perfectly in sync with the database
+    const interval = setInterval(fetchBatches, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchBatches = async () => {
