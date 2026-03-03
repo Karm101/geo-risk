@@ -13,15 +13,17 @@ export default function BatchHistory() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetchBatches()
+    fetchBatches(true) // Show loading text ONLY on the first load
     
-    // Add the polling interval so it stays perfectly in sync with the database
-    const interval = setInterval(fetchBatches, 5000)
+    // Silent background polling every 5 seconds
+    const interval = setInterval(() => fetchBatches(false), 5000)
     return () => clearInterval(interval)
   }, [])
 
-  const fetchBatches = async () => {
-    setIsLoading(true)
+  // Add a parameter to control the loading state
+  const fetchBatches = async (isInitialLoad = false) => {
+    if (isInitialLoad) setIsLoading(true)
+    
     try {
       const res = await fetch('/api/batches')
       const json = await res.json()
@@ -31,7 +33,7 @@ export default function BatchHistory() {
     } catch (error) {
       console.error("Failed to load batches", error)
     } finally {
-      setIsLoading(false)
+      if (isInitialLoad) setIsLoading(false)
     }
   }
 

@@ -80,9 +80,11 @@ export async function POST(request: Request) {
       const igeoPb = calcIgeo(cleanPb, bg.Pb)
 
       let computedRiskLevel = 'LOW'
-      if (computedPLI >= 3.0) {
+      if (computedPLI > 3.0) {
+        computedRiskLevel = 'VERY HIGH'
+      } else if (computedPLI > 2.0) {
         computedRiskLevel = 'HIGH'
-      } else if (computedPLI >= 1.0) {
+      } else if (computedPLI > 1.0) {
         computedRiskLevel = 'MODERATE'
       }
 

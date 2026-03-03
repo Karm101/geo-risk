@@ -2,13 +2,14 @@
 
 import { useRef, useState } from 'react'
 import Papa from 'papaparse'
+import { useRouter } from 'next/navigation' // 1. Import the router
 
 export default function UploadButton() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const router = useRouter() // 2. Initialize the router
 
   const handleButtonClick = () => {
-    // Secretly click the hidden file input
     fileInputRef.current?.click()
   }
 
@@ -18,32 +19,20 @@ export default function UploadButton() {
 
     setIsUploading(true)
 
-    // Parse the CSV file right in the browser
     Papa.parse(file, {
       header: true, 
       dynamicTyping: true, 
       skipEmptyLines: true,
       complete: async (results) => {
         try {
-          // Map the clean CSV headers to keys for our API
           const cleanData = results.data.map((row: any) => ({
             sampleName: row["Sample_Name"],
-            Cr: row["Cr"],
-            Mn: row["Mn"],
-            Fe: row["Fe"],
-            Co: row["Co"],
-            Ni: row["Ni"],
-            Cu: row["Cu"],
-            Zn: row["Zn"],
-            As: row["As"],
-            Cd: row["Cd"],
-            Hg: row["Hg"],
-            Pb: row["Pb"]
+            Cr: row["Cr"], Mn: row["Mn"], Fe: row["Fe"],
+            Co: row["Co"], Ni: row["Ni"], Cu: row["Cu"],
+            Zn: row["Zn"], As: row["As"], Cd: row["Cd"],
+            Hg: row["Hg"], Pb: row["Pb"]
           }))
 
-          console.log("Here is the parsed data:", cleanData)
-
-          // Send the clean JSON data to our API route
           const response = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -54,6 +43,10 @@ export default function UploadButton() {
           
           if (dbResult.success) {
             alert(`Success! Inserted ${dbResult.inserted} records into PostGIS.`)
+            
+            // 3. THE HANDSHAKE: Clear the URL so the dashboard snaps to the new "Latest" batch
+            router.push('?', { scroll: false })
+            
           } else {
             alert("Something went wrong with the database.")
           }
@@ -62,14 +55,15 @@ export default function UploadButton() {
           alert("Failed to send data to the server.")
         } finally {
           setIsUploading(false)
+          // Also clear the file input so you can upload the same file again if needed
+          if (fileInputRef.current) fileInputRef.current.value = ''
         }
       }
     })
   }
 
- return (
+  return (
       <div>
-        {/* This is the hidden file input */}
         <input
           type="file"
           accept=".csv"
@@ -78,7 +72,6 @@ export default function UploadButton() {
           onChange={handleFileChange}
         />
         
-        {/* Your beautiful UI button with dynamic loading text */}
         <button 
           onClick={handleButtonClick} 
           disabled={isUploading}

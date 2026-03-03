@@ -54,9 +54,6 @@ export default function DataManagement() {
             </div>
           </div>
 
-          {/* 2. INSERT BATCH HISTORY HERE */}
-          <BatchHistory />
-
           {/* Real-time PostGIS Pipeline Monitor */}
           <DatabaseMonitor />
 
@@ -64,6 +61,9 @@ export default function DataManagement() {
           <div className="mt-4 flex-1 min-h-0">
             <DataTable />
           </div>
+
+                  {/* 2. INSERT BATCH HISTORY HERE */}
+          <BatchHistory />
         </div>
       </main>
     </div>
