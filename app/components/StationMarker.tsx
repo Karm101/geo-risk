@@ -50,24 +50,24 @@ type Props = {
 // Color is assigned by index so it stays stable regardless of which subset is present.
 
 const METAL_REGISTRY = [
-  { igeoKey: 'igeo_pb', concKey: 'pb_mg_kg', label: 'Pb', color: '#f43f5e' },
-  { igeoKey: 'igeo_cd', concKey: 'cd_mg_kg', label: 'Cd', color: '#f97316' },
-  { igeoKey: 'igeo_hg', concKey: 'hg_mg_kg', label: 'Hg', color: '#eab308' },
-  { igeoKey: 'igeo_as', concKey: 'as_mg_kg', label: 'As', color: '#10b981' },
-  { igeoKey: 'igeo_cu', concKey: 'cu_mg_kg', label: 'Cu', color: '#38bdf8' },
-  { igeoKey: 'igeo_zn', concKey: 'zn_mg_kg', label: 'Zn', color: '#818cf8' },
-  { igeoKey: 'igeo_ni', concKey: 'ni_mg_kg', label: 'Ni', color: '#e879f9' },
-  { igeoKey: 'igeo_co', concKey: 'co_mg_kg', label: 'Co', color: '#fb7185' },
-  { igeoKey: 'igeo_cr', concKey: 'cr_mg_kg', label: 'Cr', color: '#34d399' },
-  { igeoKey: 'igeo_mn', concKey: 'mn_mg_kg', label: 'Mn', color: '#fbbf24' },
-  { igeoKey: 'igeo_fe', concKey: 'fe_mg_kg', label: 'Fe', color: '#60a5fa' },
+  { igeoKey: 'igeo_pb', concKey: 'pb_mg_kg', label: 'Pb', color: '#ef4444' },  // red — most toxic
+  { igeoKey: 'igeo_cd', concKey: 'cd_mg_kg', label: 'Cd', color: '#f43f5e' },  // rose red
+  { igeoKey: 'igeo_hg', concKey: 'hg_mg_kg', label: 'Hg', color: '#f97316' },  // orange-red
+  { igeoKey: 'igeo_as', concKey: 'as_mg_kg', label: 'As', color: '#fb923c' },  // orange
+  { igeoKey: 'igeo_cu', concKey: 'cu_mg_kg', label: 'Cu', color: '#eab308' },  // yellow
+  { igeoKey: 'igeo_ni', concKey: 'ni_mg_kg', label: 'Ni', color: '#facc15' },  // yellow-green
+  { igeoKey: 'igeo_cr', concKey: 'cr_mg_kg', label: 'Cr', color: '#a3e635' },  // lime
+  { igeoKey: 'igeo_zn', concKey: 'zn_mg_kg', label: 'Zn', color: '#4ade80' },  // green
+  { igeoKey: 'igeo_co', concKey: 'co_mg_kg', label: 'Co', color: '#34d399' },  // emerald
+  { igeoKey: 'igeo_mn', concKey: 'mn_mg_kg', label: 'Mn', color: '#2dd4bf' },  // teal
+  { igeoKey: 'igeo_fe', concKey: 'fe_mg_kg', label: 'Fe', color: '#38bdf8' },  // sky — least concern
 ] as const
 
 const RISK_COLORS: Record<RiskLevel, string> = {
-  'LOW':       '#10b981',
-  'MODERATE':  '#f59e0b',
-  'HIGH':      '#f43f5e',
-  'VERY HIGH': '#a855f7',
+  'LOW':       '#22c55e',  // green
+  'MODERATE':  '#eab308',  // yellow
+  'HIGH':      '#f97316',  // orange
+  'VERY HIGH': '#ef4444',  // red
 }
 
 // ─── Dynamic helpers ──────────────────────────────────────────────────────────
@@ -132,6 +132,9 @@ function createPinIcon(
         opacity: 1 !important;
         box-shadow: 0 0 20px ${color} !important;
         border-color: white !important;
+      }
+        .leaflet-marker-icon:hover {
+        z-index: 99999 !important; 
       }
 
       /* 2. Scale the Label */

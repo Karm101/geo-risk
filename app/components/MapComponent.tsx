@@ -60,38 +60,34 @@ const BASEMAP_TILES: Record<BasemapType, { url: string; attribution: string }> =
   },
 }
 
-const LAYER_CONFIG: Record<LayerType, {
-  label: string
-  borderColor: string
-  legend: { color: string; shape: 'circle' | 'square'; label: string }[]
-}> = {
+const LAYER_CONFIG = {
   pli: {
     label: 'PLI Index',
     borderColor: '#f43f5e',
     legend: [
-      { color: '#a855f7', shape: 'circle', label: 'Very High >3' },
-      { color: '#f43f5e', shape: 'circle', label: 'High 2–3' },
-      { color: '#f59e0b', shape: 'circle', label: 'Moderate 1–2' },
-      { color: '#10b981', shape: 'circle', label: 'Low <1' },
+      { color: '#ef4444', shape: 'circle', label: 'Very High  >3' },
+      { color: '#f97316', shape: 'circle', label: 'High  2–3' },
+      { color: '#eab308', shape: 'circle', label: 'Moderate  1–2' },
+      { color: '#22c55e', shape: 'circle', label: 'Low  <1' },
     ]
   },
   igeo: {
     label: 'Metal Risk',
     borderColor: '#38bdf8',
     legend: [
-      { color: '#f43f5e', shape: 'square', label: 'Pb' },
-      { color: '#f97316', shape: 'square', label: 'Cd' },
-      { color: '#eab308', shape: 'square', label: 'Cu' },
-      { color: '#38bdf8', shape: 'square', label: 'Zn' },
-      { color: '#64748b', shape: 'square', label: 'Other' },
+      { color: '#ef4444', shape: 'square', label: 'Pb / Cd' },
+      { color: '#f97316', shape: 'square', label: 'Hg / As' },
+      { color: '#eab308', shape: 'square', label: 'Cu / Ni' },
+      { color: '#a3e635', shape: 'square', label: 'Cr / Zn' },
+      { color: '#2dd4bf', shape: 'square', label: 'Co / Mn / Fe' },
     ]
   },
   risk: {
     label: 'Risk Zones',
     borderColor: '#f59e0b',
     legend: [
-      { color: '#a855f7', shape: 'circle', label: 'Critical PLI >3' },
-      { color: '#f43f5e', shape: 'circle', label: 'High PLI >2' },
+      { color: '#ef4444', shape: 'circle', label: 'Critical  PLI >3' },
+      { color: '#f97316', shape: 'circle', label: 'High  PLI >2' },
       { color: '#334155', shape: 'circle', label: 'Below threshold' },
     ]
   }
