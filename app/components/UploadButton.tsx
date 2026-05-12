@@ -25,18 +25,14 @@ export default function UploadButton() {
       skipEmptyLines: true,
       complete: async (results) => {
         try {
-          const cleanData = results.data.map((row: any) => ({
-            sampleName: row["Sample_Name"],
-            Cr: row["Cr"], Mn: row["Mn"], Fe: row["Fe"],
-            Co: row["Co"], Ni: row["Ni"], Cu: row["Cu"],
-            Zn: row["Zn"], As: row["As"], Cd: row["Cd"],
-            Hg: row["Hg"], Pb: row["Pb"]
-          }))
+          // 👇 Let the backend do the heavy lifting. 
+          // Papa.parse already gives us a clean array of objects!
+          const payload = results.data; 
 
           const response = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cleanData),
+            body: JSON.stringify(payload), // Send the raw parsed rows
           })
 
           const dbResult = await response.json()
@@ -48,14 +44,13 @@ export default function UploadButton() {
             router.push('?', { scroll: false })
             
           } else {
-            alert("Something went wrong with the database.")
+            alert(`Error: ${dbResult.error || "Something went wrong with the database."}`)
           }
         } catch (error) {
           console.error(error)
           alert("Failed to send data to the server.")
         } finally {
           setIsUploading(false)
-          // Also clear the file input so you can upload the same file again if needed
           if (fileInputRef.current) fileInputRef.current.value = ''
         }
       }

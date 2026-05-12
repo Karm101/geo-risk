@@ -1,5 +1,5 @@
 'use client'
-import { Marker, Popup, Tooltip } from 'react-leaflet'
+import { Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import { useMemo } from 'react'
 
@@ -45,20 +45,22 @@ type Props = {
   zoom: number
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Master metal registry ────────────────────────────────────────────────────
+// All possible metals, in priority order for dominant metal selection.
+// Color is assigned by index so it stays stable regardless of which subset is present.
 
-const METALS = [
-  { key: 'igeo_pb', label: 'Pb' },
-  { key: 'igeo_cd', label: 'Cd' },
-  { key: 'igeo_hg', label: 'Hg' },
-  { key: 'igeo_as', label: 'As' },
-  { key: 'igeo_cu', label: 'Cu' },
-  { key: 'igeo_zn', label: 'Zn' },
-  { key: 'igeo_ni', label: 'Ni' },
-  { key: 'igeo_co', label: 'Co' },
-  { key: 'igeo_cr', label: 'Cr' },
-  { key: 'igeo_mn', label: 'Mn' },
-  { key: 'igeo_fe', label: 'Fe' },
+const METAL_REGISTRY = [
+  { igeoKey: 'igeo_pb', concKey: 'pb_mg_kg', label: 'Pb', color: '#f43f5e' },
+  { igeoKey: 'igeo_cd', concKey: 'cd_mg_kg', label: 'Cd', color: '#f97316' },
+  { igeoKey: 'igeo_hg', concKey: 'hg_mg_kg', label: 'Hg', color: '#eab308' },
+  { igeoKey: 'igeo_as', concKey: 'as_mg_kg', label: 'As', color: '#10b981' },
+  { igeoKey: 'igeo_cu', concKey: 'cu_mg_kg', label: 'Cu', color: '#38bdf8' },
+  { igeoKey: 'igeo_zn', concKey: 'zn_mg_kg', label: 'Zn', color: '#818cf8' },
+  { igeoKey: 'igeo_ni', concKey: 'ni_mg_kg', label: 'Ni', color: '#e879f9' },
+  { igeoKey: 'igeo_co', concKey: 'co_mg_kg', label: 'Co', color: '#fb7185' },
+  { igeoKey: 'igeo_cr', concKey: 'cr_mg_kg', label: 'Cr', color: '#34d399' },
+  { igeoKey: 'igeo_mn', concKey: 'mn_mg_kg', label: 'Mn', color: '#fbbf24' },
+  { igeoKey: 'igeo_fe', concKey: 'fe_mg_kg', label: 'Fe', color: '#60a5fa' },
 ] as const
 
 const RISK_COLORS: Record<RiskLevel, string> = {
@@ -68,27 +70,28 @@ const RISK_COLORS: Record<RiskLevel, string> = {
   'VERY HIGH': '#a855f7',
 }
 
-const METAL_COLORS = [
-  '#f43f5e', '#f97316', '#eab308', '#10b981',
-  '#38bdf8', '#818cf8', '#e879f9', '#fb7185',
-  '#34d399', '#fbbf24', '#60a5fa',
-]
+// ─── Dynamic helpers ──────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Returns only the metals that have non-null igeo values for this station
+function getPresentMetals(station: StationData) {
+  return METAL_REGISTRY.filter(
+    m => station[m.igeoKey as keyof StationData] !== null
+  ).map(m => ({
+    ...m,
+    igeoValue: Number(station[m.igeoKey as keyof StationData]),
+    concValue: station[m.concKey as keyof StationData] !== null 
+                 ? Number(station[m.concKey as keyof StationData]) 
+                 : null,
+  }))
+}
 
 function getDominantMetal(station: StationData) {
-  let maxVal = -Infinity
-  let dominant = { key: 'igeo_pb', label: 'Pb', index: 0 }
+  const present = getPresentMetals(station)
+  if (present.length === 0) return null
 
-  METALS.forEach((metal, index) => {
-    const val = station[metal.key as keyof StationData] as number | null
-    if (val !== null && val > maxVal) {
-      maxVal = val
-      dominant = { ...metal, index }
-    }
-  })
-
-  return { ...dominant, value: maxVal, color: METAL_COLORS[dominant.index] }
+  return present.reduce((best, m) =>
+    m.igeoValue > best.igeoValue ? m : best
+  )
 }
 
 function getPinSize(riskLevel: RiskLevel): number {
@@ -108,27 +111,16 @@ function createPinIcon(
   const glow = dimmed ? 'none' : `drop-shadow(0 0 6px ${color})`
   const opacity = dimmed ? 0.25 : 1
 
-  const dot = shape === 'circle'
-    ? `<div style="
-        width:${size}px;
-        height:${size}px;
-        background:${color};
-        border-radius:50%;
-        border:2px solid rgba(255,255,255,0.3);
-        filter:${glow};
-        box-shadow:0 0 ${size}px ${color}40;
-        transition:transform 0.15s;
-      "></div>`
-    : `<div style="
-        width:${size}px;
-        height:${size}px;
-        background:${color};
-        border-radius:3px;
-        border:2px solid rgba(255,255,255,0.3);
-        filter:${glow};
-        box-shadow:0 0 ${size}px ${color}40;
-        transition:transform 0.15s;
-      "></div>`
+  const dot = `<div style="
+    width:${size}px;
+    height:${size}px;
+    background:${color};
+    border-radius:${shape === 'circle' ? '50%' : '3px'};
+    border:2px solid rgba(255,255,255,0.3);
+    filter:${glow};
+    box-shadow:0 0 ${size}px ${color}40;
+    transition:transform 0.15s;
+  "></div>`
 
   const markup = `
     <div style="
@@ -153,14 +145,13 @@ function createPinIcon(
       ">${label} · ${sublabel}</span>` : ''}
     </div>`
 
-  // Total height = dot + gap + label (~14px)
   const totalHeight = size + 3 + Math.max(14, fontSize + 4)
 
   return L.divIcon({
     html: markup,
     className: '',
     iconSize: [size * 3, totalHeight],
-    iconAnchor: [(size * 3) / 2, size / 2], // anchor at center of dot
+    iconAnchor: [(size * 3) / 2, size / 2],
   })
 }
 
@@ -169,14 +160,8 @@ function createPinIcon(
 function PopupContent({ station }: { station: StationData }) {
   const dominant = getDominantMetal(station)
   const riskColor = RISK_COLORS[station.risk_level]
-
-  const igeoValues = METALS.map((m, i) => ({
-    label: m.label,
-    value: station[m.key as keyof StationData] as number | null,
-    color: METAL_COLORS[i],
-  })).filter(m => m.value !== null) as { label: string; value: number; color: string }[]
-
-  const maxIgeo = Math.max(...igeoValues.map(m => Math.abs(m.value)), 1)
+  const presentMetals = getPresentMetals(station)
+  const maxIgeo = Math.max(...presentMetals.map(m => Math.abs(m.igeoValue)), 1)
 
   return (
     <div style={{
@@ -184,10 +169,10 @@ function PopupContent({ station }: { station: StationData }) {
       background: '#111520',
       color: '#e2e8f0',
       borderRadius: '12px',
-      padding: '18px',                              // 14px × 1.25 = ~18px
-      minWidth: '275px',                            // 220px × 1.25 = 275px
-      fontSize: '14px',                             // 11px × 1.25 = ~14px
-      border: `1px solid rgba(255,255,255,0.1)`,    // subtle white border
+      padding: '18px',
+      minWidth: '275px',
+      fontSize: '14px',
+      border: '1px solid rgba(255,255,255,0.1)',
       boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
     }}>
       {/* Header */}
@@ -213,36 +198,52 @@ function PopupContent({ station }: { station: StationData }) {
       {/* Dominant Metal */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#94a3b8' }}>
         <span>Dominant Metal</span>
-        <span style={{ color: dominant.color, fontWeight: 700 }}>
-          {dominant.value === -Infinity
-            ? <span style={{ color: '#475569' }}>No data</span>
-            : <>{dominant.label} <span style={{ color: '#64748b' }}>({dominant.value.toFixed(2)})</span></>
+        <span>
+          {dominant
+            ? <span style={{ color: dominant.color, fontWeight: 700 }}>
+                {dominant.label}{' '}
+                <span style={{ color: '#64748b' }}>({dominant.igeoValue.toFixed(2)})</span>
+              </span>
+            : <span style={{ color: '#475569' }}>No data</span>
           }
         </span>
       </div>
 
       <div style={{ borderTop: '1px solid #1e2535', margin: '8px 0' }} />
 
-      {/* Igeo Bar Chart */}
+      {/* Igeo Bar Chart — only present metals */}
       <div style={{ marginBottom: '10px' }}>
-        <div style={{ fontSize: '9px', color: '#475569', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px' }}>
+        <div style={{
+          fontSize: '9px', color: '#475569',
+          letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px'
+        }}>
           Igeo Values
+          {presentMetals.length > 0 && (
+            <span style={{ color: '#334155', marginLeft: '6px' }}>
+              ({presentMetals.length} metal{presentMetals.length !== 1 ? 's' : ''})
+            </span>
+          )}
         </div>
-        {igeoValues.length === 0
+        {presentMetals.length === 0
           ? <div style={{ color: '#475569', fontSize: '10px' }}>No data uploaded yet</div>
-          : igeoValues.map(({ label, value, color }) => (
+          : presentMetals.map(({ label, igeoValue, color }) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <span style={{ width: '18px', color: '#64748b', fontSize: '9px' }}>{label}</span>
               <div style={{ flex: 1, height: '5px', background: '#1e2535', borderRadius: '3px', overflow: 'hidden' }}>
                 <div style={{
-                  width: `${Math.min((Math.abs(value) / maxIgeo) * 100, 100)}%`,
+                  width: `${Math.min((Math.abs(igeoValue) / maxIgeo) * 100, 100)}%`,
                   height: '100%',
-                  background: value > 0 ? color : '#334155',
+                  background: igeoValue > 0 ? color : '#334155',
                   borderRadius: '3px',
                 }} />
               </div>
-              <span style={{ fontSize: '9px', color: value > 0 ? color : '#475569', width: '32px', textAlign: 'right' }}>
-                {value.toFixed(2)}
+              <span style={{
+                fontSize: '9px',
+                color: igeoValue > 0 ? color : '#475569',
+                width: '32px',
+                textAlign: 'right',
+              }}>
+                {igeoValue.toFixed(2)}
               </span>
             </div>
           ))
@@ -273,16 +274,18 @@ export default function StationMarker({ station, activeLayer, zoom }: Props) {
   const riskColor = RISK_COLORS[station.risk_level]
 
   const shape: 'circle' | 'square' = activeLayer === 'igeo' ? 'square' : 'circle'
-  const color = activeLayer === 'igeo' ? dominant.color : riskColor
+  const color = activeLayer === 'igeo'
+    ? (dominant?.color ?? '#64748b')   // fallback gray if no metals present
+    : riskColor
+
   const baseSize = getPinSize(station.risk_level)
   const scaledSize = Math.max(4, Math.round(baseSize * Math.pow(zoom / 11, 2)))
 
   const dimmed = activeLayer === 'risk' &&
     (station.risk_level === 'LOW' || station.risk_level === 'MODERATE')
 
-  // Sublabel: PLI value for pli/risk layers, dominant metal for igeo
   const sublabel = activeLayer === 'igeo'
-    ? dominant.value === -Infinity ? '—' : dominant.label
+    ? (dominant?.label ?? '—')
     : `PLI ${Number(station.pli).toFixed(2)}`
 
   const MIN_ZOOM_FOR_LABELS = 11
@@ -294,11 +297,12 @@ export default function StationMarker({ station, activeLayer, zoom }: Props) {
 
   return (
     <Marker
+      key={`${station.station_id}-${activeLayer}-${station.pli}`} 
       position={[station.latitude, station.longitude]}
       icon={icon}
     >
-      <Popup 
-        minWidth={275} 
+      <Popup
+        minWidth={275}
         offset={[0, -5]}
         className="georisk-popup"
       >
