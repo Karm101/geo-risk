@@ -45,3 +45,16 @@ body {
 .leaflet-popup-close-button {
   display: none !important;
 }
+
+/* When hovering over the marker container, make the internal dot pop */
+.leaflet-marker-icon:hover .station-dot {
+  transform: scale(1.5); /* Grows 50% larger on hover */
+  opacity: 1 !important;   /* Becomes fully opaque */
+  box-shadow: 0 0 15px white !important; /* Extra glow to highlight selection */
+  z-index: 9999;
+}
+
+/* Ensure the popup doesn't interfere with the hover state */
+.georisk-popup {
+  pointer-events: none;
+}

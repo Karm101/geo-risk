@@ -95,7 +95,7 @@ function getDominantMetal(station: StationData) {
 }
 
 function getPinSize(riskLevel: RiskLevel): number {
-  return { 'LOW': 16, 'MODERATE': 20, 'HIGH': 24, 'VERY HIGH': 28 }[riskLevel]
+  return { 'LOW': 12, 'MODERATE': 14, 'HIGH': 16, 'VERY HIGH': 18 }[riskLevel]
 }
 
 function createPinIcon(
@@ -111,37 +111,60 @@ function createPinIcon(
   const glow = dimmed ? 'none' : `drop-shadow(0 0 6px ${color})`
   const opacity = dimmed ? 0.25 : 1
 
-  const dot = `<div style="
+  const dot = `<div class="station-dot" style="
     width:${size}px;
     height:${size}px;
     background:${color};
+    opacity:${opacity};
     border-radius:${shape === 'circle' ? '50%' : '3px'};
-    border:2px solid rgba(255,255,255,0.3);
+    border:1px solid rgba(255,255,255,0.6);
     filter:${glow};
-    box-shadow:0 0 ${size}px ${color}40;
-    transition:transform 0.15s;
+    box-shadow: 0 0 8px ${color}80;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor:pointer;
   "></div>`
 
   const markup = `
+    <style>
+      /* 1. Scale the Dot */
+      .leaflet-marker-icon:hover .station-dot {
+        transform: scale(2.0) translateY(-2px);
+        opacity: 1 !important;
+        box-shadow: 0 0 20px ${color} !important;
+        border-color: white !important;
+      }
+
+      /* 2. Scale the Label */
+      .leaflet-marker-icon:hover .station-label {
+        transform: scale(1.3) translateY(2px); /* Slightly grows and shifts down */
+        background: rgba(0, 0, 0, 0.95) !important; /* Darkens for contrast */
+        color: white !important;
+        border-color: ${color} !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        z-index: 1000;
+      }
+    </style>
+
     <div style="
       display:flex;
       flex-direction:column;
       align-items:center;
-      gap:3px;
+      gap:5px;
       opacity:${opacity};
-      cursor:pointer;
     ">
       ${dot}
-      ${showLabel ? `<span style="
+      ${showLabel ? `<span class="station-label" style="
         font-family:'Space Mono',monospace;
         font-size:${fontSize}px;
         color:rgba(255,255,255,${dimmed ? 0.3 : 0.85});
         white-space:nowrap;
-        background:rgba(0,0,0,0.65);
-        padding:1px 5px;
+        background:rgba(0,0,0,0.75);
+        padding:2px 6px;
         border-radius:3px;
         border:1px solid ${dimmed ? 'rgba(255,255,255,0.05)' : color + '50'};
         letter-spacing:0.03em;
+        pointer-events: none;
+        transition: all 0.2s ease-out; /* Smooth transition for the label */
       ">${label} · ${sublabel}</span>` : ''}
     </div>`
 
@@ -278,8 +301,17 @@ export default function StationMarker({ station, activeLayer, zoom }: Props) {
     ? (dominant?.color ?? '#64748b')   // fallback gray if no metals present
     : riskColor
 
+
   const baseSize = getPinSize(station.risk_level)
-  const scaledSize = Math.max(4, Math.round(baseSize * Math.pow(zoom / 11, 2)))
+
+  const pliValue = Number(station.pli) || 0
+  const pliMultiplier = 1 + (Math.min(pliValue, 5) * 0.04) 
+  const intensityBaseSize = baseSize * pliMultiplier
+
+  const zoomFactor = zoom / 11
+  const clampedZoom = Math.min(Math.max(zoomFactor, 0.7), 1.5)
+
+  const scaledSize = Math.max(8, Math.round(intensityBaseSize * clampedZoom))
 
   const dimmed = activeLayer === 'risk' &&
     (station.risk_level === 'LOW' || station.risk_level === 'MODERATE')
@@ -292,7 +324,8 @@ export default function StationMarker({ station, activeLayer, zoom }: Props) {
 
   const icon = useMemo(
     () => createPinIcon(color, scaledSize, shape, station.station_id, sublabel, dimmed, zoom >= MIN_ZOOM_FOR_LABELS),
-    [color, scaledSize, shape, station.station_id, sublabel, dimmed, zoom]
+    // 👇 Ensure station.pli is in the dependency array so the intensity math recalculates!
+    [color, scaledSize, shape, station.station_id, station.pli, sublabel, dimmed, zoom] 
   )
 
   return (
@@ -300,6 +333,9 @@ export default function StationMarker({ station, activeLayer, zoom }: Props) {
       key={`${station.station_id}-${activeLayer}-${station.pli}`} 
       position={[station.latitude, station.longitude]}
       icon={icon}
+      // 👇 This ensures the hovered pin jumps to the front of the stack
+      riseOnHover={true} 
+      zIndexOffset={activeLayer === 'risk' ? 100 : 0} // Optional: boost priority for specific layers
     >
       <Popup
         minWidth={275}
