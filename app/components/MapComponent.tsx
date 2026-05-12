@@ -4,9 +4,27 @@ import 'leaflet/dist/leaflet.css'
 import { useEffect, useState, useMemo } from 'react'
 import StationMarker, { StationData } from './StationMarker'
 import type { LayerType } from './StationMarker'
+import type { BasemapType } from './MapLayerWidget'
 import { STATION_COORDINATES } from '../lib/stations'
 
 const MIN_ZOOM_FOR_RIVERS = 9
+
+// ─── Basemap tile config ──────────────────────────────────────────────────────
+
+const BASEMAP_TILES: Record<BasemapType, { url: string; attribution: string }> = {
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+  },
+  topo: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, USGS, NOAA',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics',
+  },
+}
 
 // ─── Layer config ─────────────────────────────────────────────────────────────
 
@@ -94,7 +112,13 @@ function LegendShape({ color, shape }: { color: string; shape: 'circle' | 'squar
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function MapComponent({ activeLayer }: { activeLayer: LayerType }) {
+export default function MapComponent({
+  activeLayer,
+  activeBasemap = 'dark',
+}: {
+  activeLayer: LayerType
+  activeBasemap?: BasemapType
+}) {
   const [zoom, setZoom] = useState(11)
   const defaultCenter: [number, number] = [7.05, 125.98]
   const defaultZoom = 11
@@ -124,6 +148,10 @@ export default function MapComponent({ activeLayer }: { activeLayer: LayerType }
   }, [stations])
 
   const config = LAYER_CONFIG[activeLayer]
+  const tileConfig = BASEMAP_TILES[activeBasemap]
+
+  // Province boundary color: more visible on satellite/topo, default on dark
+  const boundaryColor = activeBasemap === 'dark' ? '#E3E3E3' : '#ffffff'
 
   return (
     <div
@@ -132,7 +160,7 @@ export default function MapComponent({ activeLayer }: { activeLayer: LayerType }
         border: `3px solid ${config.borderColor}`,
         boxShadow: `0 0 20px ${config.borderColor}40, 0 0 60px ${config.borderColor}15, inset 0 0 20px ${config.borderColor}05`,
         transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
-    }}
+      }}
     >
       {/* Layer badge top-left */}
       <div style={{
@@ -178,16 +206,20 @@ export default function MapComponent({ activeLayer }: { activeLayer: LayerType }
         style={{ height: '100%' }}
       >
         <ZoomTracker onZoom={setZoom} />
+
+        {/* ── Basemap tile layer — swaps on prop change ── */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/">CartoDB</a>'
+          key={activeBasemap}           // forces remount when basemap changes
+          url={tileConfig.url}
+          attribution={tileConfig.attribution}
+          maxZoom={19}
         />
 
         {provinceData && (
           <GeoJSON
             data={provinceData}
             style={{
-              color: '#E3E3E3',
+              color: boundaryColor,
               weight: 3,
               opacity: 0.8,
               fillOpacity: 0,
@@ -232,7 +264,7 @@ export default function MapComponent({ activeLayer }: { activeLayer: LayerType }
       </MapContainer>
 
       {/* Footer legend */}
-        <div style={{
+      <div style={{
         position: 'absolute',
         bottom: 0,
         left: 0,
@@ -241,62 +273,58 @@ export default function MapComponent({ activeLayer }: { activeLayer: LayerType }
         background: 'rgba(10,13,18,0.88)',
         borderTop: `1px solid ${config.borderColor}30`,
         backdropFilter: 'blur(8px)',
-        padding: '13px 26px',        // 8px × 1.618 ≈ 13px, 16px × 1.618 ≈ 26px
+        padding: '13px 26px',
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',                 // 6px × 1.618 ≈ 10px
+        gap: '10px',
         flexWrap: 'wrap',
-        }}>
-        {/* Legend label */}
+      }}>
         <span style={{
-            fontFamily: "'Space Mono', monospace",
-            fontSize: '10px',          // 8px × 1.25 ≈ scaled up one notch
-            letterSpacing: '0.12em',
-            color: '#475569',
-            textTransform: 'uppercase',
-            marginRight: '10px',       // 6px × 1.618 ≈ 10px
+          fontFamily: "'Space Mono', monospace",
+          fontSize: '10px',
+          letterSpacing: '0.12em',
+          color: '#475569',
+          textTransform: 'uppercase',
+          marginRight: '10px',
         }}>
-            {activeLayer === 'igeo' ? 'Pin color = dominant metal' : 'Pin size + color = PLI risk level'}
+          {activeLayer === 'igeo' ? 'Pin color = dominant metal' : 'Pin size + color = PLI risk level'}
         </span>
 
-        {/* Divider */}
         <div style={{ width: '1px', height: '20px', background: '#1e2535', marginRight: '10px' }} />
 
-        {/* Legend items */}
         {config.legend.map((item) => (
-            <div key={item.label} style={{
+          <div key={item.label} style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',              // 5px × 1.618 ≈ 8px
-            marginRight: '16px',     // 10px × 1.618 ≈ 16px
-            }}>
+            gap: '8px',
+            marginRight: '16px',
+          }}>
             <div style={{
-                width: '16px',         // 10px × 1.618 ≈ 16px
-                height: '16px',
-                background: item.color,
-                borderRadius: item.shape === 'circle' ? '50%' : '3px',
-                flexShrink: 0,
-                boxShadow: item.color !== '#334155' ? `0 0 8px ${item.color}` : 'none',
+              width: '16px',
+              height: '16px',
+              background: item.color,
+              borderRadius: item.shape === 'circle' ? '50%' : '3px',
+              flexShrink: 0,
+              boxShadow: item.color !== '#334155' ? `0 0 8px ${item.color}` : 'none',
             }} />
             <span style={{
-                fontFamily: "'Space Mono', monospace",
-                fontSize: '11px',      // 9px × 1.25 ≈ scaled up
-                color: '#94a3b8',
+              fontFamily: "'Space Mono', monospace",
+              fontSize: '11px',
+              color: '#94a3b8',
             }}>{item.label}</span>
-            </div>
+          </div>
         ))}
 
         <div style={{ flex: 1 }} />
 
-        {/* Station count */}
         <span style={{
-            fontFamily: "'Space Mono', monospace",
-            fontSize: '10px',          // 8px × 1.25
-            color: '#475569',
+          fontFamily: "'Space Mono', monospace",
+          fontSize: '10px',
+          color: '#475569',
         }}>
-            {Object.keys(STATION_COORDINATES).length} stations
+          {Object.keys(STATION_COORDINATES).length} stations
         </span>
-        </div>
+      </div>
 
       <style>{`
         @keyframes pulse {

@@ -1,8 +1,8 @@
 'use client'
-
 import dynamic from 'next/dynamic'
+import type { LayerType } from './StationMarker'
+import type { BasemapType } from './MapLayerWidget'
 
-// We dynamically import the actual map and explicitly tell Next.js to disable Server-Side Rendering (SSR)
 const MapComponent = dynamic(() => import('./MapComponent'), {
   ssr: false,
   loading: () => (
@@ -13,6 +13,12 @@ const MapComponent = dynamic(() => import('./MapComponent'), {
   )
 })
 
-export default function MapWrapper(props: any) {
-  return <MapComponent {...props} />
+export default function MapWrapper({
+  activeLayer,
+  activeBasemap = 'dark',
+}: {
+  activeLayer: LayerType
+  activeBasemap?: BasemapType
+}) {
+  return <MapComponent activeLayer={activeLayer} activeBasemap={activeBasemap} />
 }
