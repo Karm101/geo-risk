@@ -28,7 +28,7 @@ export default function MapLayerWidget({
 
   return (
     <div
-      className="absolute top-6 right-6 z-10 rounded-xl shadow-2xl"
+      className="absolute top-4 right-5 z-10 rounded-xl shadow-2xl"
       style={{
         background: 'rgba(17,21,32,0.92)',
         border: '1px solid #1e2535',

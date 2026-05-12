@@ -2,14 +2,48 @@
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useState, useMemo } from 'react'
+import MapLocationHUD from './MapLocationHUD'
 import StationMarker, { StationData } from './StationMarker'
+import MapAdminWidget, { AdminLayerKey } from './MapAdminWidget'
 import type { LayerType } from './StationMarker'
 import type { BasemapType } from './MapLayerWidget'
 import { STATION_COORDINATES } from '../lib/stations'
+import * as turf from '@turf/turf'
+
+function HoverInfoTracker({ geoData, onLocationChange }: { geoData: any, onLocationChange: (info: any) => void }) {
+  useMapEvents({
+    mousemove: (e) => {
+      const point = turf.point([e.latlng.lng, e.latlng.lat]);
+      
+      const findName = (data: any, key: string) => {
+        if (!data || !data.features) return '—';
+        // Point-in-polygon check against the specific GeoJSON layer
+        const found = data.features.find((f: any) => turf.booleanPointInPolygon(point, f));
+        // Target the specific adm#_en property provided
+        return found ? found.properties[key] : '—';
+      };
+
+      onLocationChange({
+        region: findName(geoData.regions, 'adm1_en'),
+        province: findName(geoData.provinces, 'adm2_en'),
+        municipality: findName(geoData.municipalities, 'adm3_en'),
+        barangay: findName(geoData.barangays, 'adm4_en')
+      });
+    },
+  });
+  return null;
+}
+
+// ─── Constants & Layer Config ────────────────────────────────────────────────
 
 const MIN_ZOOM_FOR_RIVERS = 9
 
-// ─── Basemap tile config ──────────────────────────────────────────────────────
+const ADMIN_LAYERS = {
+  regions: '/mindanao_regions_simplified.geojson',
+  provinces: '/mindanao_provinces.geojson',
+  municipalities: '/mindanao_municipalities.geojson',
+  barangays: '/mindanao_barangays.geojson',
+} as const
 
 const BASEMAP_TILES: Record<BasemapType, { url: string; attribution: string }> = {
   dark: {
@@ -25,8 +59,6 @@ const BASEMAP_TILES: Record<BasemapType, { url: string; attribution: string }> =
     attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics',
   },
 }
-
-// ─── Layer config ─────────────────────────────────────────────────────────────
 
 const LAYER_CONFIG: Record<LayerType, {
   label: string
@@ -65,11 +97,20 @@ const LAYER_CONFIG: Record<LayerType, {
   }
 }
 
-// ─── Internal components ──────────────────────────────────────────────────────
+// ─── Helper Components ──────────────────────────────────────────────────────
 
 function ZoomTracker({ onZoom }: { onZoom: (z: number) => void }) {
   useMapEvents({ zoomend: (e) => onZoom(e.target.getZoom()) })
   return null
+}
+
+function MouseTracker({ onMove }: { onMove: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    mousemove: (e) => {
+      onMove(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
 }
 
 function RiverLayer({ data }: { data: any }) {
@@ -81,32 +122,14 @@ function RiverLayer({ data }: { data: any }) {
   return (
     <GeoJSON
       data={data}
-      style={(feature) => {
-        const type = feature?.properties?.waterway
-        return {
-          color: '#00ADE3',
-          weight: type === 'river' ? 3 : type === 'canal' ? 2 : 1,
-          opacity: type === 'river' ? 0.9 : 0.6,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }
-      }}
+      style={(feature) => ({
+        color: '#00ADE3',
+        weight: feature?.properties?.waterway === 'river' ? 3 : 1,
+        opacity: 0.6,
+        lineCap: 'round',
+        lineJoin: 'round'
+      })}
     />
-  )
-}
-
-// ─── Legend dot/square ────────────────────────────────────────────────────────
-
-function LegendShape({ color, shape }: { color: string; shape: 'circle' | 'square' }) {
-  return (
-    <div style={{
-      width: '10px',
-      height: '10px',
-      background: color,
-      borderRadius: shape === 'circle' ? '50%' : '2px',
-      flexShrink: 0,
-      boxShadow: color !== '#334155' ? `0 0 6px ${color}` : 'none',
-    }} />
   )
 }
 
@@ -119,29 +142,50 @@ export default function MapComponent({
   activeLayer: LayerType
   activeBasemap?: BasemapType
 }) {
-  const [zoom, setZoom] = useState(11)
+
+  const [hoverInfo, setHoverInfo] = useState({
+    region: '—',
+    province: '—',
+    municipality: '—',
+    barangay: '—'
+  });
+
+  const [zoom, setZoom] = useState(11);
+  const [coords, setCoords] = useState({ lat: 7.0500, lng: 125.9800 });
   const defaultCenter: [number, number] = [7.05, 125.98]
-  const defaultZoom = 11
-  const [riverData, setRiverData] = useState(null)
-  const [provinceData, setProvinceData] = useState(null)
   const [stations, setStations] = useState<StationData[]>([])
+  const [geoData, setGeoData] = useState<any>({})
+
+  // Admin Layer Visibility State
+  const [adminVisibility, setAdminVisibility] = useState<Record<AdminLayerKey, boolean>>({
+    regions: true,
+    provinces: true,
+    municipalities: false,
+    barangays: false,
+  })
+
+  const toggleAdminLayer = (key: AdminLayerKey) => {
+    setAdminVisibility(prev => ({ ...prev, [key]: !prev[key] }))
+  }
 
   useEffect(() => {
-    fetch('/export.geojson')
-      .then(res => res.json())
-      .then(data => setRiverData(data))
+    const fetchJson = (url: string, key: string) => 
+      fetch(url).then(res => res.json()).then(data => setGeoData((prev: any) => ({ ...prev, [key]: data })));
 
-    fetch('/davao-oriental.geojson')
-      .then(res => res.json())
-      .then(data => setProvinceData(data))
+    fetchJson('/export.geojson', 'rivers');
+    fetchJson('/davao-oriental.geojson', 'province');
+
+    Object.entries(ADMIN_LAYERS).forEach(([key, url]) => {
+      fetch(url)
+        .then(res => res.json())
+        .then(data => setGeoData((prev: any) => ({ ...prev, [key]: data })))
+        .catch(err => console.error(`Failed to load ${key}:`, err));
+    });
 
     fetch('/api/data')
       .then(res => res.json())
-      .then(result => {
-        if (result.success) setStations(result.data)
-      })
-      .catch(() => {})
-  }, [])
+      .then(result => { if (result.success) setStations(result.data) });
+  }, []);
 
   const stationDataMap = useMemo(() => {
     return Object.fromEntries(stations.map(s => [s.station_id, s]))
@@ -149,9 +193,6 @@ export default function MapComponent({
 
   const config = LAYER_CONFIG[activeLayer]
   const tileConfig = BASEMAP_TILES[activeBasemap]
-
-  // Province boundary color: more visible on satellite/topo, default on dark
-  const boundaryColor = activeBasemap === 'dark' ? '#E3E3E3' : '#ffffff'
 
   return (
     <div
@@ -162,12 +203,15 @@ export default function MapComponent({
         transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
       }}
     >
-      {/* Layer badge top-left */}
+      {/* 1. Left-side Admin Widget */}
+      <MapAdminWidget visibleLayers={adminVisibility} toggleLayer={toggleAdminLayer} />
+
+      {/* 2. Top-left Layer Badge - Simplified Position */}
       <div style={{
         position: 'absolute',
         top: '12px',
         left: '12px',
-        zIndex: 1000,
+        zIndex: 999,
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
@@ -176,6 +220,8 @@ export default function MapComponent({
         borderRadius: '8px',
         padding: '5px 10px',
         backdropFilter: 'blur(8px)',
+        marginLeft: '0px', 
+        transition: 'all 0.3s ease'
       }}>
         <span style={{
           fontFamily: "'Space Mono', monospace",
@@ -197,40 +243,71 @@ export default function MapComponent({
         }} />
       </div>
 
-      {/* Map */}
-      <MapContainer
-        center={defaultCenter}
-        zoom={defaultZoom}
-        className="w-full h-full"
-        zoomControl={false}
-        style={{ height: '100%' }}
-      >
-        <ZoomTracker onZoom={setZoom} />
+      {/* ─── Top Middle Mouse Widget (Coordinates) ─── */}
+      <div style={{
+        position: 'absolute',
+        top: '12px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1001,
+        background: 'rgba(17,21,32,0.92)',
+        border: '1px solid #1e2535',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '10px',
+        padding: '4px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        pointerEvents: 'none',
+      }}>
+        {/* LAT */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#475569', fontWeight: 700 }}>LAT</span>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#e2e8f0', minWidth: '60px', textAlign: 'right' }}>
+            {coords.lat.toFixed(4)}
+          </span>
+        </div>
 
-        {/* ── Basemap tile layer — swaps on prop change ── */}
-        <TileLayer
-          key={activeBasemap}           // forces remount when basemap changes
-          url={tileConfig.url}
-          attribution={tileConfig.attribution}
-          maxZoom={19}
+        <div style={{ width: '1px', height: '12px', background: '#1e2535' }} />
+
+        {/* LNG */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#475569', fontWeight: 700 }}>LNG</span>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#e2e8f0', minWidth: '70px', textAlign: 'right' }}>
+            {coords.lng.toFixed(4)}
+          </span>
+        </div>
+      </div>
+
+      <MapLocationHUD hoverInfo={hoverInfo} />
+
+      <MapContainer center={[7.05, 125.98]} zoom={11} className="w-full h-full" zoomControl={false}>
+        <ZoomTracker onZoom={setZoom} />
+        <MouseTracker onMove={(lat, lng) => setCoords({ lat, lng })} />
+        <HoverInfoTracker 
+          geoData={geoData} 
+          onLocationChange={(info) => setHoverInfo(info)} 
         />
 
-        {provinceData && (
-          <GeoJSON
-            data={provinceData}
-            style={{
-              color: boundaryColor,
-              weight: 3,
-              opacity: 0.8,
-              fillOpacity: 0,
-              dashArray: '10 15',
-              lineCap: 'round',
-            }}
-          />
+        <TileLayer key={activeBasemap} url={tileConfig.url} attribution={tileConfig.attribution} />
+
+        {/* ── Mindanao Admin Borders ── */}
+        {geoData.regions && adminVisibility.regions && (
+          <GeoJSON data={geoData.regions} style={{ color: '#ff4444', weight: 4, fillOpacity: 0 }} />
+        )}
+        {geoData.provinces && adminVisibility.provinces && (
+          <GeoJSON data={geoData.provinces} style={{ color: '#ffa500', weight: 2, dashArray: '5, 10', fillOpacity: 0 }} />
+        )}
+        {geoData.municipalities && adminVisibility.municipalities && (
+          <GeoJSON data={geoData.municipalities} style={{ color: '#ffff00', weight: 1, dashArray: '2, 5', fillOpacity: 0 }} />
+        )}
+        {geoData.barangays && adminVisibility.barangays && (
+          <GeoJSON data={geoData.barangays} style={{ color: '#a855f7', weight: 0.5, fillOpacity: 0.05 }} />
         )}
 
-        {riverData && <RiverLayer data={riverData} />}
+        {geoData.rivers && <RiverLayer data={geoData.rivers} />}
 
+        {/* ── Sampling Station Pins ── */}
         {Object.entries(STATION_COORDINATES)
           .filter(([_, coords]) => coords.latitude !== null)
           .map(([stationId, coords]) => {
@@ -242,19 +319,7 @@ export default function MapComponent({
                   station_id: stationId,
                   latitude: coords.latitude!,
                   longitude: coords.longitude!,
-                  ...(dbData ?? {
-                    batch_id: '—',
-                    pli: 0,
-                    risk_level: 'LOW',
-                    cr_mg_kg: null, mn_mg_kg: null, fe_mg_kg: null,
-                    co_mg_kg: null, ni_mg_kg: null, cu_mg_kg: null,
-                    zn_mg_kg: null, as_mg_kg: null, cd_mg_kg: null,
-                    hg_mg_kg: null, pb_mg_kg: null,
-                    igeo_cr: null, igeo_mn: null, igeo_fe: null,
-                    igeo_co: null, igeo_ni: null, igeo_cu: null,
-                    igeo_zn: null, igeo_as: null, igeo_cd: null,
-                    igeo_hg: null, igeo_pb: null,
-                  })
+                  ...(dbData ?? { pli: 0, risk_level: 'LOW', batch_id: '—' })
                 }}
                 activeLayer={activeLayer}
                 zoom={zoom}
@@ -263,12 +328,10 @@ export default function MapComponent({
           })}
       </MapContainer>
 
-      {/* Footer legend */}
+      {/* 3. Footer Legend */}
       <div style={{
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
+        bottom: 0, left: 0, right: 0,
         zIndex: 1000,
         background: 'rgba(10,13,18,0.88)',
         borderTop: `1px solid ${config.borderColor}30`,
@@ -293,35 +356,22 @@ export default function MapComponent({
         <div style={{ width: '1px', height: '20px', background: '#1e2535', marginRight: '10px' }} />
 
         {config.legend.map((item) => (
-          <div key={item.label} style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginRight: '16px',
-          }}>
+          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '16px' }}>
             <div style={{
-              width: '16px',
-              height: '16px',
+              width: '16px', height: '16px',
               background: item.color,
               borderRadius: item.shape === 'circle' ? '50%' : '3px',
-              flexShrink: 0,
               boxShadow: item.color !== '#334155' ? `0 0 8px ${item.color}` : 'none',
             }} />
-            <span style={{
-              fontFamily: "'Space Mono', monospace",
-              fontSize: '11px',
-              color: '#94a3b8',
-            }}>{item.label}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#94a3b8' }}>
+              {item.label}
+            </span>
           </div>
         ))}
 
         <div style={{ flex: 1 }} />
 
-        <span style={{
-          fontFamily: "'Space Mono', monospace",
-          fontSize: '10px',
-          color: '#475569',
-        }}>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#475569' }}>
           {Object.keys(STATION_COORDINATES).length} stations
         </span>
       </div>
