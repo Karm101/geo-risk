@@ -7,42 +7,77 @@ import StationMarker, { StationData } from './StationMarker'
 import MapAdminWidget, { AdminLayerKey } from './MapAdminWidget'
 import type { LayerType } from './StationMarker'
 import type { BasemapType } from './MapLayerWidget'
-import { STATION_COORDINATES } from '../lib/stations'
 import * as turf from '@turf/turf'
 
-function HoverInfoTracker({ geoData, onLocationChange }: { geoData: any, onLocationChange: (info: any) => void }) {
-  useMapEvents({
-    mousemove: (e) => {
-      const point = turf.point([e.latlng.lng, e.latlng.lat]);
-      
-      const findName = (data: any, key: string) => {
-        if (!data || !data.features) return '—';
-        // Point-in-polygon check against the specific GeoJSON layer
-        const found = data.features.find((f: any) => turf.booleanPointInPolygon(point, f));
-        // Target the specific adm#_en property provided
-        return found ? found.properties[key] : '—';
-      };
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-      onLocationChange({
-        region: findName(geoData.regions, 'adm1_en'),
-        province: findName(geoData.provinces, 'adm2_en'),
-        municipality: findName(geoData.municipalities, 'adm3_en'),
-        barangay: findName(geoData.barangays, 'adm4_en')
-      });
-    },
-  });
-  return null;
+type StationLocation = {
+  station_id: string
+  river:      string | null
+  barangay:   string | null
+  latitude:   number
+  longitude:  number
+  elevation:  number | null
+  is_hidden:  boolean
 }
 
-// ─── Constants & Layer Config ────────────────────────────────────────────────
+// ─── Internal components ──────────────────────────────────────────────────────
 
-const MIN_ZOOM_FOR_RIVERS = 9
+function HoverInfoTracker({ geoData, onLocationChange }: { geoData: any; onLocationChange: (info: any) => void }) {
+  useMapEvents({
+    mousemove: (e) => {
+      const point = turf.point([e.latlng.lng, e.latlng.lat])
+      const findName = (data: any, key: string) => {
+        if (!data?.features) return '—'
+        const found = data.features.find((f: any) => turf.booleanPointInPolygon(point, f))
+        return found ? found.properties[key] : '—'
+      }
+      onLocationChange({
+        region:        findName(geoData.regions,        'adm1_en'),
+        province:      findName(geoData.provinces,      'adm2_en'),
+        municipality:  findName(geoData.municipalities, 'adm3_en'),
+        barangay:      findName(geoData.barangays,      'adm4_en'),
+      })
+    },
+  })
+  return null
+}
+
+function ZoomTracker({ onZoom }: { onZoom: (z: number) => void }) {
+  useMapEvents({ zoomend: (e) => onZoom(e.target.getZoom()) })
+  return null
+}
+
+function MouseTracker({ onMove }: { onMove: (lat: number, lng: number) => void }) {
+  useMapEvents({ mousemove: (e) => onMove(e.latlng.lat, e.latlng.lng) })
+  return null
+}
+
+function RiverLayer({ data }: { data: any }) {
+  const [visible, setVisible] = useState(true)
+  useMapEvents({ zoomend: (e) => setVisible(e.target.getZoom() >= 9) })
+  if (!visible) return null
+  return (
+    <GeoJSON
+      data={data}
+      style={(feature) => ({
+        color: '#00ADE3',
+        weight: feature?.properties?.waterway === 'river' ? 3 : 1,
+        opacity: 0.6,
+        lineCap: 'round',
+        lineJoin: 'round',
+      })}
+    />
+  )
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const ADMIN_LAYERS = {
-  regions: '/mindanao_regions_simplified.geojson',
-  provinces: '/mindanao_provinces.geojson',
+  regions:        '/mindanao_regions_simplified.geojson',
+  provinces:      '/mindanao_provinces.geojson',
   municipalities: '/mindanao_municipalities.geojson',
-  barangays: '/mindanao_barangays.geojson',
+  barangays:      '/mindanao_barangays.geojson',
 } as const
 
 const BASEMAP_TILES: Record<BasemapType, { url: string; attribution: string }> = {
@@ -93,42 +128,6 @@ const LAYER_CONFIG = {
   }
 }
 
-// ─── Helper Components ──────────────────────────────────────────────────────
-
-function ZoomTracker({ onZoom }: { onZoom: (z: number) => void }) {
-  useMapEvents({ zoomend: (e) => onZoom(e.target.getZoom()) })
-  return null
-}
-
-function MouseTracker({ onMove }: { onMove: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    mousemove: (e) => {
-      onMove(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-}
-
-function RiverLayer({ data }: { data: any }) {
-  const [visible, setVisible] = useState(true)
-  useMapEvents({
-    zoomend: (e) => setVisible(e.target.getZoom() >= MIN_ZOOM_FOR_RIVERS)
-  })
-  if (!visible) return null
-  return (
-    <GeoJSON
-      data={data}
-      style={(feature) => ({
-        color: '#00ADE3',
-        weight: feature?.properties?.waterway === 'river' ? 3 : 1,
-        opacity: 0.6,
-        lineCap: 'round',
-        lineJoin: 'round'
-      })}
-    />
-  )
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function MapComponent({
@@ -138,56 +137,60 @@ export default function MapComponent({
   activeLayer: LayerType
   activeBasemap?: BasemapType
 }) {
+  const [zoom, setZoom]     = useState(11)
+  const [coords, setCoords] = useState({ lat: 7.0500, lng: 125.9800 })
+  const [hoverInfo, setHoverInfo] = useState({ region: '—', province: '—', municipality: '—', barangay: '—' })
+  const [geoData, setGeoData]     = useState<any>({})
 
-  const [hoverInfo, setHoverInfo] = useState({
-    region: '—',
-    province: '—',
-    municipality: '—',
-    barangay: '—'
-  });
+  // Two separate concerns: WHERE stations are vs WHAT data they have
+  const [stationLocations, setStationLocations] = useState<StationLocation[]>([])
+  const [sampleData, setSampleData]             = useState<StationData[]>([])
 
-  const [zoom, setZoom] = useState(11);
-  const [coords, setCoords] = useState({ lat: 7.0500, lng: 125.9800 });
-  const defaultCenter: [number, number] = [7.05, 125.98]
-  const [stations, setStations] = useState<StationData[]>([])
-  const [geoData, setGeoData] = useState<any>({})
-
-  // Admin Layer Visibility State
   const [adminVisibility, setAdminVisibility] = useState<Record<AdminLayerKey, boolean>>({
-    regions: true,
-    provinces: true,
-    municipalities: false,
-    barangays: false,
+    regions: true, provinces: true, municipalities: false, barangays: false,
   })
 
-  const toggleAdminLayer = (key: AdminLayerKey) => {
+  const toggleAdminLayer = (key: AdminLayerKey) =>
     setAdminVisibility(prev => ({ ...prev, [key]: !prev[key] }))
-  }
 
   useEffect(() => {
-    const fetchJson = (url: string, key: string) => 
-      fetch(url).then(res => res.json()).then(data => setGeoData((prev: any) => ({ ...prev, [key]: data })));
-
-    fetchJson('/export.geojson', 'rivers');
-    fetchJson('/davao-oriental.geojson', 'province');
-
-    Object.entries(ADMIN_LAYERS).forEach(([key, url]) => {
-      fetch(url)
-        .then(res => res.json())
+    // GeoJSON layers
+    const loadJson = (url: string, key: string) =>
+      fetch(url).then(r => r.json())
         .then(data => setGeoData((prev: any) => ({ ...prev, [key]: data })))
-        .catch(err => console.error(`Failed to load ${key}:`, err));
-    });
+        .catch(err => console.error(`Failed to load ${key}:`, err))
 
+    loadJson('/export.geojson',         'rivers')
+    loadJson('/davao-oriental.geojson', 'province')
+    Object.entries(ADMIN_LAYERS).forEach(([key, url]) => loadJson(url, key))
+
+    // Station locations — DB primary, filtered to active + visible only
+    fetch('/api/stations')
+      .then(r => r.json())
+      .then(result => {
+        if (!result.success) return
+        const active: StationLocation[] = result.data.filter(
+          (s: any) => !s.is_hidden && !s.is_deleted
+                   && s.latitude  != null
+                   && s.longitude != null
+        )
+        setStationLocations(active)
+      })
+      .catch(err => console.error('Failed to load stations:', err))
+
+    // Sample data (PLI, Igeo, metals) for selected batch
     fetch('/api/data')
-      .then(res => res.json())
-      .then(result => { if (result.success) setStations(result.data) });
-  }, []);
+      .then(r => r.json())
+      .then(result => { if (result.success) setSampleData(result.data) })
+      .catch(err => console.error('Failed to load sample data:', err))
+  }, [])
 
-  const stationDataMap = useMemo(() => {
-    return Object.fromEntries(stations.map(s => [s.station_id, s]))
-  }, [stations])
+  const sampleDataMap = useMemo(
+    () => Object.fromEntries(sampleData.map(s => [s.station_id, s])),
+    [sampleData]
+  )
 
-  const config = LAYER_CONFIG[activeLayer]
+  const config     = LAYER_CONFIG[activeLayer]
   const tileConfig = BASEMAP_TILES[activeBasemap]
 
   return (
@@ -199,74 +202,46 @@ export default function MapComponent({
         transition: 'border-color 0.4s ease, box-shadow 0.4s ease',
       }}
     >
-      {/* 1. Left-side Admin Widget */}
       <MapAdminWidget visibleLayers={adminVisibility} toggleLayer={toggleAdminLayer} />
 
-      {/* 2. Top-left Layer Badge - Simplified Position */}
+      {/* Layer badge */}
       <div style={{
-        position: 'absolute',
-        top: '12px',
-        left: '12px',
-        zIndex: 999,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        background: 'rgba(10,13,18,0.85)',
-        border: `1px solid ${config.borderColor}40`,
-        borderRadius: '8px',
-        padding: '5px 10px',
-        backdropFilter: 'blur(8px)',
-        marginLeft: '0px', 
-        transition: 'all 0.3s ease'
+        position: 'absolute', top: '12px', left: '12px', zIndex: 999,
+        display: 'flex', alignItems: 'center', gap: '8px',
+        background: 'rgba(10,13,18,0.85)', border: `1px solid ${config.borderColor}40`,
+        borderRadius: '8px', padding: '5px 10px', backdropFilter: 'blur(8px)',
+        transition: 'all 0.3s ease',
       }}>
         <span style={{
-          fontFamily: "'Space Mono', monospace",
-          fontSize: '9px',
-          letterSpacing: '0.15em',
-          color: config.borderColor,
-          textTransform: 'uppercase',
-          fontWeight: 700,
+          fontFamily: "'Space Mono', monospace", fontSize: '9px',
+          letterSpacing: '0.15em', color: config.borderColor,
+          textTransform: 'uppercase', fontWeight: 700,
         }}>
           {config.label}
         </span>
         <div style={{
-          width: '6px',
-          height: '6px',
-          borderRadius: '50%',
-          background: config.borderColor,
-          boxShadow: `0 0 6px ${config.borderColor}`,
+          width: '6px', height: '6px', borderRadius: '50%',
+          background: config.borderColor, boxShadow: `0 0 6px ${config.borderColor}`,
           animation: 'pulse 2s ease-in-out infinite',
         }} />
       </div>
 
-      {/* ─── Top Middle Mouse Widget (Coordinates) ─── */}
+      {/* Coordinate HUD */}
       <div style={{
-        position: 'absolute',
-        top: '12px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 1001,
-        background: 'rgba(17,21,32,0.92)',
-        border: '1px solid #1e2535',
-        backdropFilter: 'blur(12px)',
-        borderRadius: '10px',
-        padding: '4px 12px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        pointerEvents: 'none',
+        position: 'absolute', top: '12px', left: '50%',
+        transform: 'translateX(-50%)', zIndex: 1001,
+        background: 'rgba(17,21,32,0.92)', border: '1px solid #1e2535',
+        backdropFilter: 'blur(12px)', borderRadius: '10px',
+        padding: '4px 12px', display: 'flex', alignItems: 'center',
+        gap: '12px', pointerEvents: 'none',
       }}>
-        {/* LAT */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#475569', fontWeight: 700 }}>LAT</span>
           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#e2e8f0', minWidth: '60px', textAlign: 'right' }}>
             {coords.lat.toFixed(4)}
           </span>
         </div>
-
         <div style={{ width: '1px', height: '12px', background: '#1e2535' }} />
-
-        {/* LNG */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '9px', color: '#475569', fontWeight: 700 }}>LNG</span>
           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#e2e8f0', minWidth: '70px', textAlign: 'right' }}>
@@ -280,71 +255,59 @@ export default function MapComponent({
       <MapContainer center={[7.05, 125.98]} zoom={11} className="w-full h-full" zoomControl={false}>
         <ZoomTracker onZoom={setZoom} />
         <MouseTracker onMove={(lat, lng) => setCoords({ lat, lng })} />
-        <HoverInfoTracker 
-          geoData={geoData} 
-          onLocationChange={(info) => setHoverInfo(info)} 
-        />
+        <HoverInfoTracker geoData={geoData} onLocationChange={setHoverInfo} />
 
         <TileLayer key={activeBasemap} url={tileConfig.url} attribution={tileConfig.attribution} />
 
-        {/* ── Mindanao Admin Borders ── */}
-        {geoData.regions && adminVisibility.regions && (
-          <GeoJSON data={geoData.regions} style={{ color: '#ff4444', weight: 4, fillOpacity: 0 }} />
-        )}
-        {geoData.provinces && adminVisibility.provinces && (
-          <GeoJSON data={geoData.provinces} style={{ color: '#ffa500', weight: 2, dashArray: '5, 10', fillOpacity: 0 }} />
-        )}
-        {geoData.municipalities && adminVisibility.municipalities && (
-          <GeoJSON data={geoData.municipalities} style={{ color: '#ffff00', weight: 1, dashArray: '2, 5', fillOpacity: 0 }} />
-        )}
-        {geoData.barangays && adminVisibility.barangays && (
-          <GeoJSON data={geoData.barangays} style={{ color: '#a855f7', weight: 0.5, fillOpacity: 0.05 }} />
-        )}
+        {geoData.regions        && adminVisibility.regions        && <GeoJSON data={geoData.regions}        style={{ color: '#ff4444', weight: 4,   fillOpacity: 0 }} />}
+        {geoData.provinces      && adminVisibility.provinces      && <GeoJSON data={geoData.provinces}      style={{ color: '#ffa500', weight: 2,   dashArray: '5, 10', fillOpacity: 0 }} />}
+        {geoData.municipalities && adminVisibility.municipalities && <GeoJSON data={geoData.municipalities} style={{ color: '#ffff00', weight: 1,   dashArray: '2, 5',  fillOpacity: 0 }} />}
+        {geoData.barangays      && adminVisibility.barangays      && <GeoJSON data={geoData.barangays}      style={{ color: '#a855f7', weight: 0.5, fillOpacity: 0.05  }} />}
 
         {geoData.rivers && <RiverLayer data={geoData.rivers} />}
 
-        {/* ── Sampling Station Pins ── */}
-        {Object.entries(STATION_COORDINATES)
-          .filter(([_, coords]) => coords.latitude !== null)
-          .map(([stationId, coords]) => {
-            const dbData = stationDataMap[stationId] ?? null
-            return (
-              <StationMarker
-                key={stationId}
-                station={{
-                  station_id: stationId,
-                  latitude: coords.latitude!,
-                  longitude: coords.longitude!,
-                  ...(dbData ?? { pli: 0, risk_level: 'LOW', batch_id: '—' })
-                }}
-                activeLayer={activeLayer}
-                zoom={zoom}
-              />
-            )
-          })}
+        {/* Station pins — locations from DB, merged with sample data */}
+        {stationLocations.map(loc => {
+          const dbData = sampleDataMap[loc.station_id] ?? null
+          return (
+            <StationMarker
+              key={loc.station_id}
+              station={{
+                station_id: loc.station_id,
+                latitude:   loc.latitude,
+                longitude:  loc.longitude,
+                ...(dbData ?? {
+                  batch_id:   '—',
+                  pli:        0,
+                  risk_level: 'LOW',
+                  cr_mg_kg: null, mn_mg_kg: null, fe_mg_kg: null,
+                  co_mg_kg: null, ni_mg_kg: null, cu_mg_kg: null,
+                  zn_mg_kg: null, as_mg_kg: null, cd_mg_kg: null,
+                  hg_mg_kg: null, pb_mg_kg: null,
+                  igeo_cr: null, igeo_mn: null, igeo_fe: null,
+                  igeo_co: null, igeo_ni: null, igeo_cu: null,
+                  igeo_zn: null, igeo_as: null, igeo_cd: null,
+                  igeo_hg: null, igeo_pb: null,
+                })
+              }}
+              activeLayer={activeLayer}
+              zoom={zoom}
+            />
+          )
+        })}
       </MapContainer>
 
-      {/* 3. Footer Legend */}
+      {/* Footer legend */}
       <div style={{
-        position: 'absolute',
-        bottom: 0, left: 0, right: 0,
-        zIndex: 1000,
-        background: 'rgba(10,13,18,0.88)',
-        borderTop: `1px solid ${config.borderColor}30`,
-        backdropFilter: 'blur(8px)',
-        padding: '13px 26px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        flexWrap: 'wrap',
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000,
+        background: 'rgba(10,13,18,0.88)', borderTop: `1px solid ${config.borderColor}30`,
+        backdropFilter: 'blur(8px)', padding: '13px 26px',
+        display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
       }}>
         <span style={{
-          fontFamily: "'Space Mono', monospace",
-          fontSize: '10px',
-          letterSpacing: '0.12em',
-          color: '#475569',
-          textTransform: 'uppercase',
-          marginRight: '10px',
+          fontFamily: "'Space Mono', monospace", fontSize: '10px',
+          letterSpacing: '0.12em', color: '#475569',
+          textTransform: 'uppercase', marginRight: '10px',
         }}>
           {activeLayer === 'igeo' ? 'Pin color = dominant metal' : 'Pin size + color = PLI risk level'}
         </span>
@@ -367,8 +330,9 @@ export default function MapComponent({
 
         <div style={{ flex: 1 }} />
 
+        {/* Live count from DB */}
         <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#475569' }}>
-          {Object.keys(STATION_COORDINATES).length} stations
+          {stationLocations.length} station{stationLocations.length !== 1 ? 's' : ''}
         </span>
       </div>
 

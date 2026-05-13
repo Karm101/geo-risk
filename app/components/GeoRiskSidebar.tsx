@@ -38,21 +38,21 @@ export function GeoRiskSidebar() {
             const isActive = pathname === item.path;
 
             return (
-              <li key={item.id} className="relative" style={{ paddingLeft: item.indent ? '16px' : '0' }}>
+              <li key={item.id} className="relative flex items-center">
+                {/* Short horizontal tick for sub-items */}
+
                 <button
                   onClick={() => router.push(item.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-medium ${
+                    item.indent ? 'ml-6' : ''
+                  } ${
                     isActive
                       ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/50'
-                      : item.indent
-                        ? 'text-gray-500 hover:bg-gray-800 hover:text-gray-300'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                   }`}
                 >
-                  <Icon className={item.indent ? 'w-4 h-4' : 'w-5 h-5'} />
-                  <span className={`font-medium ${item.indent ? 'text-sm' : ''}`}>
-                    {item.label}
-                  </span>
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
                 </button>
               </li>
             );
@@ -63,11 +63,11 @@ export function GeoRiskSidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-gray-800">
         <button
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all mt-2"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all mt-2 font-medium"
           onClick={handleLogout}
         >
           <LogOut className="w-5 h-5" />
-          <span className="font-medium">Logout</span>
+          <span>Logout</span>
         </button>
         <div className="mt-4 px-4">
           <p className="text-xs text-gray-500">© 2026 MGB Philippines</p>

@@ -350,7 +350,7 @@ export default function StationsPage() {
                 <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: '28px', fontWeight: 700, color: '#e2e8f0', marginBottom: '6px' }}>
                   Stations
                 </h1>
-                <p style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#475569' }}>
+                <p className="text-gray-400">
                   Manage sampling station locations and visibility
                 </p>
               </div>
