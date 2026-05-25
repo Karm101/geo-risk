@@ -36,16 +36,11 @@ export function GeoRiskSidebar() {
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.path;
-
             return (
-              <li key={item.id} className="relative flex items-center">
-                {/* Short horizontal tick for sub-items */}
-
+              <li key={item.id} className={item.indent ? 'pl-6' : ''}>
                 <button
                   onClick={() => router.push(item.path)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-medium ${
-                    item.indent ? 'ml-6' : ''
-                  } ${
                     isActive
                       ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/50'
                       : 'text-gray-400 hover:bg-gray-800 hover:text-white'

@@ -6,7 +6,6 @@ import UploadButton from '../components/UploadButton';
 import DataTable from '../components/DataTable';
 import DatabaseMonitor from '../components/DatabaseMonitor';
 import DatabaseStatusCard from '../components/DatabaseStatusCard';
-// 1. IMPORT THE NEW COMPONENT
 import BatchHistory from '../components/BatchHistory';
 
 export default function DataManagement() {

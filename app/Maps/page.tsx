@@ -4,13 +4,13 @@ import { GeoRiskSidebar } from '../components/GeoRiskSidebar';
 import MapWrapper from '../components/MapWrapper'
 import { CoverageCard, SamplingPointsCard, LastUpdatedCard, BatchSelectorCard } from '../components/MapInfoCards'
 import MapLayerWidget from '../components/MapLayerWidget'
-import type { BasemapType } from '../components/MapLayerWidget'  // ← already imported, just keep it
+import type { BasemapType } from '../maps/types' 
 
 export type LayerType = 'igeo' | 'pli' | 'risk';
 
 export default function InteractiveMaps() {
   const [activeLayer, setActiveLayer] = useState<LayerType>('pli');
-  const [activeBasemap, setActiveBasemap] = useState<BasemapType>('dark');  // ← ADD THIS
+  const [activeBasemap, setActiveBasemap] = useState<BasemapType>('dark');  
 
   return (
     <div className="flex min-h-screen bg-gray-950">
@@ -29,8 +29,8 @@ export default function InteractiveMaps() {
             <MapLayerWidget
               activeLayer={activeLayer}
               setActiveLayer={setActiveLayer}
-              activeBasemap={activeBasemap}        // ← ADD THIS
-              setActiveBasemap={setActiveBasemap}  // ← ADD THIS
+              activeBasemap={activeBasemap}       
+              setActiveBasemap={setActiveBasemap}  
             />
             
             {/* Map */}
@@ -38,7 +38,7 @@ export default function InteractiveMaps() {
               <div style={{ height: '700px' }}>
                 <MapWrapper
                   activeLayer={activeLayer}
-                  activeBasemap={activeBasemap}    // ← ADD THIS
+                  activeBasemap={activeBasemap}  
                 />
               </div>
             </div>

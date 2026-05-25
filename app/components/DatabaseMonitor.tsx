@@ -73,7 +73,6 @@ export default function DatabaseMonitor() {
         <span>Selected Batch:</span>
         
         <div className="relative" ref={dropdownRef}>
-          {/* UPDATED BUTTON: Added padding, negative margin, and dynamic hover background */}
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className={`flex items-center gap-1 px-2 py-1 -mx-2 rounded-lg font-mono transition-all focus:outline-none ${
