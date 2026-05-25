@@ -145,6 +145,7 @@ export default function MapComponent({
   const [hoverInfo, setHoverInfo] = useState({ region: '—', province: '—', municipality: '—', barangay: '—' })
   const [geoData, setGeoData]     = useState<any>({})
 
+  const [stationLocations, setStationLocations] = useState<StationLocation[]>([])
   const [sampleData, setSampleData] = useState<StationData[]>([])
   const [adminVisibility, setAdminVisibility] = useState<Record<AdminLayerKey, boolean>>({
     regions: true, provinces: true, municipalities: false, barangays: false,
@@ -178,6 +179,21 @@ export default function MapComponent({
     .catch(err => console.error('Failed to load sample data:', err))
     
 }, [selectedBatch])
+
+// Fetch dynamic station locations from your database
+useEffect(() => {
+  fetch('/api/stations')
+    .then(r => r.json())
+    .then(result => {
+      if (!result.success) return
+      // Filter out hidden, soft-deleted, or unconfigured coordinates
+      const active = result.data.filter(
+        (s: any) => !s.is_hidden && !s.is_deleted && s.latitude != null && s.longitude != null
+      )
+      setStationLocations(active)
+    })
+    .catch(err => console.error('Failed to load dynamic station locations:', err))
+}, []) // Runs once on map mount
 
   const sampleDataMap = useMemo(
     () => Object.fromEntries(sampleData.map(s => [s.station_id, s])),
@@ -247,7 +263,7 @@ export default function MapComponent({
       <MapLocationHUD hoverInfo={hoverInfo} />
 
       <MapContainer 
-        key="geo-risk-primary-map-container" // <-- Forces React to manage the DOM binding cleanly across remounts
+        key="geo-risk-primary-map-container" // Forces React to manage the DOM binding cleanly across remounts
         center={[7.05, 125.98]} 
         zoom={11} 
         className="w-full h-full" 
@@ -266,40 +282,36 @@ export default function MapComponent({
 
         {geoData.rivers && <RiverLayer data={geoData.rivers} />}
 
-        {/* Station pins — locations strictly from lib/stations.ts, merged with sample data */}
-      {Object.entries(STATION_COORDINATES).map(([stationId, loc]) => {
-        // Skip stations that don't have valid map coordinates (e.g., MPB 1)
-        if (loc.latitude === null || loc.longitude === null) return null;
+        {/* Station pins — dynamically synchronized from the DB data registry */}
+        {stationLocations.map((loc) => {
+          const dbData = sampleDataMap[loc.station_id] ?? null
 
-        const dbData = sampleDataMap[stationId] ?? null;
-        
-        return (
-          <StationMarker
-            // This combined key forces Leaflet to completely rebuild the pin when batches switch
-            key={`${stationId}-${selectedBatch}`}
-            station={{
-              station_id: stationId,
-              latitude:   loc.latitude,
-              longitude:  loc.longitude,
-              ...(dbData ?? {
-                batch_id:   selectedBatch || '—',
-                pli:        0,
-                risk_level: 'LOW',
-                cr_mg_kg: null, mn_mg_kg: null, fe_mg_kg: null,
-                co_mg_kg: null, ni_mg_kg: null, cu_mg_kg: null,
-                zn_mg_kg: null, as_mg_kg: null, cd_mg_kg: null,
-                hg_mg_kg: null, pb_mg_kg: null,
-                igeo_cr: null, igeo_mn: null, igeo_fe: null,
-                igeo_co: null, igeo_ni: null, igeo_cu: null,
-                igeo_zn: null, igeo_as: null, igeo_cd: null,
-                igeo_hg: null, igeo_pb: null,
-              })
-            }}
-            activeLayer={activeLayer}
-            zoom={zoom}
-          />
-        )
-      })}
+          return (
+            <StationMarker
+              key={`${loc.station_id}-${selectedBatch}`}
+              station={{
+                station_id: loc.station_id,
+                latitude:   loc.latitude,
+                longitude:  loc.longitude,
+                ...(dbData ?? {
+                  batch_id:   selectedBatch || '—',
+                  pli:        0,
+                  risk_level: 'LOW',
+                  cr_mg_kg: null, mn_mg_kg: null, fe_mg_kg: null,
+                  co_mg_kg: null, ni_mg_kg: null, cu_mg_kg: null,
+                  zn_mg_kg: null, as_mg_kg: null, cd_mg_kg: null,
+                  hg_mg_kg: null, pb_mg_kg: null,
+                  igeo_cr: null, igeo_mn: null, igeo_fe: null,
+                  igeo_co: null, igeo_ni: null, igeo_cu: null,
+                  igeo_zn: null, igeo_as: null, igeo_cd: null,
+                  igeo_hg: null, igeo_pb: null,
+                })
+              }}
+              activeLayer={activeLayer}
+              zoom={zoom}
+            />
+          )
+        })}
       </MapContainer>
 
       {/* Footer legend */}

@@ -37,8 +37,11 @@ export function GeoRiskSidebar() {
             const Icon = item.icon;
             const isActive = pathname === item.path;
             return (
-              <li key={item.id} className={item.indent ? 'pl-6' : ''}>
+              // Cleaned: Removed the conditional padding layout shift class string entirely
+              <li key={item.id}>
+                {/* Sidebar Buttons */}
                 <button
+                  style={{ cursor: 'pointer' }}
                   onClick={() => router.push(item.path)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-medium ${
                     isActive
@@ -57,7 +60,9 @@ export function GeoRiskSidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-800">
+        {/* Logout Button */}
         <button
+        style={{ cursor: 'pointer' }}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all mt-2 font-medium"
           onClick={handleLogout}
         >
