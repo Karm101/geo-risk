@@ -7,6 +7,7 @@ import DataTable from '../components/DataTable';
 import DatabaseMonitor from '../components/DatabaseMonitor';
 import DatabaseStatusCard from '../components/DatabaseStatusCard';
 import BatchHistory from '../components/BatchHistory';
+import GenerateReportButton from '../components/GenerateReportButton';
 
 export default function DataManagement() {
   return (
@@ -46,13 +47,11 @@ export default function DataManagement() {
                 </div>
                 <h2 className="text-lg font-bold text-white">Export Data</h2>
               </div>
-              <p className="text-sm text-gray-400 mb-4">Download reports as PDF</p>
-              <button className="w-full py-3 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-all">
-                Generate Report
-              </button>
+              <p className="text-sm text-gray-400 mb-4">Download AI insights & data as PDF</p>
+              <GenerateReportButton />
+            
             </div>
           </div>
-
           {/* Real-time PostGIS Pipeline Monitor */}
           <DatabaseMonitor />
 
