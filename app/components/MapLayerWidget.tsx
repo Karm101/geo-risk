@@ -1,7 +1,7 @@
 'use client'
 import { Layers, ChevronUp, Map } from 'lucide-react'
 import { useState } from 'react'
-import type { LayerType } from '../maps/page'
+import type { LayerType } from '../maps/types'
 
 export type BasemapType = 'dark' | 'topo' | 'satellite'
 
