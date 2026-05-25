@@ -5,6 +5,8 @@ import { useEffect, useState, useMemo } from 'react'
 import MapLocationHUD from './MapLocationHUD'
 import StationMarker, { StationData } from './StationMarker'
 import MapAdminWidget, { AdminLayerKey } from './MapAdminWidget'
+import { useBatch } from '../context/BatchContext'
+import { STATION_COORDINATES } from '../lib/stations'
 import type { LayerType } from './StationMarker'
 import type { BasemapType } from './MapLayerWidget'
 import * as turf from '@turf/turf'
@@ -137,15 +139,13 @@ export default function MapComponent({
   activeLayer: LayerType
   activeBasemap?: BasemapType
 }) {
+  const { selectedBatch } = useBatch()
   const [zoom, setZoom]     = useState(11)
   const [coords, setCoords] = useState({ lat: 7.0500, lng: 125.9800 })
   const [hoverInfo, setHoverInfo] = useState({ region: '—', province: '—', municipality: '—', barangay: '—' })
   const [geoData, setGeoData]     = useState<any>({})
 
-  // Two separate concerns: WHERE stations are vs WHAT data they have
-  const [stationLocations, setStationLocations] = useState<StationLocation[]>([])
-  const [sampleData, setSampleData]             = useState<StationData[]>([])
-
+  const [sampleData, setSampleData] = useState<StationData[]>([])
   const [adminVisibility, setAdminVisibility] = useState<Record<AdminLayerKey, boolean>>({
     regions: true, provinces: true, municipalities: false, barangays: false,
   })
@@ -154,36 +154,30 @@ export default function MapComponent({
     setAdminVisibility(prev => ({ ...prev, [key]: !prev[key] }))
 
   useEffect(() => {
-    // GeoJSON layers
+    // GeoJSON layers (Runs once, safely)
     const loadJson = (url: string, key: string) =>
       fetch(url).then(r => r.json())
         .then(data => setGeoData((prev: any) => ({ ...prev, [key]: data })))
         .catch(err => console.error(`Failed to load ${key}:`, err))
 
-    loadJson('/export.geojson',         'rivers')
-    loadJson('/davao-oriental.geojson', 'province')
-    Object.entries(ADMIN_LAYERS).forEach(([key, url]) => loadJson(url, key))
+    if (!geoData.rivers) {
+      loadJson('/export.geojson',         'rivers')
+      loadJson('/davao-oriental.geojson', 'province')
+      Object.entries(ADMIN_LAYERS).forEach(([key, url]) => loadJson(url, key))
+    }
+  }, []) // Empty array is fine here for static GeoJSON
 
-    // Station locations — DB primary, filtered to active + visible only
-    fetch('/api/stations')
-      .then(r => r.json())
-      .then(result => {
-        if (!result.success) return
-        const active: StationLocation[] = result.data.filter(
-          (s: any) => !s.is_hidden && !s.is_deleted
-                   && s.latitude  != null
-                   && s.longitude != null
-        )
-        setStationLocations(active)
-      })
-      .catch(err => console.error('Failed to load stations:', err))
+  useEffect(() => {
+  if (!selectedBatch) return;
 
-    // Sample data (PLI, Igeo, metals) for selected batch
-    fetch('/api/data')
-      .then(r => r.json())
-      .then(result => { if (result.success) setSampleData(result.data) })
-      .catch(err => console.error('Failed to load sample data:', err))
-  }, [])
+  fetch(`/api/data?batch=${selectedBatch}`)
+    .then(r => r.json())
+    .then(result => { 
+      if (result.success) setSampleData(result.data) 
+    })
+    .catch(err => console.error('Failed to load sample data:', err))
+    
+}, [selectedBatch])
 
   const sampleDataMap = useMemo(
     () => Object.fromEntries(sampleData.map(s => [s.station_id, s])),
@@ -252,12 +246,18 @@ export default function MapComponent({
 
       <MapLocationHUD hoverInfo={hoverInfo} />
 
-      <MapContainer center={[7.05, 125.98]} zoom={11} className="w-full h-full" zoomControl={false}>
+      <MapContainer 
+        key="geo-risk-primary-map-container" // <-- Forces React to manage the DOM binding cleanly across remounts
+        center={[7.05, 125.98]} 
+        zoom={11} 
+        className="w-full h-full" 
+        zoomControl={false}
+      >
         <ZoomTracker onZoom={setZoom} />
         <MouseTracker onMove={(lat, lng) => setCoords({ lat, lng })} />
         <HoverInfoTracker geoData={geoData} onLocationChange={setHoverInfo} />
 
-        <TileLayer key={activeBasemap} url={tileConfig.url} attribution={tileConfig.attribution} />
+        <TileLayer url={tileConfig.url} attribution={tileConfig.attribution} />
 
         {geoData.regions        && adminVisibility.regions        && <GeoJSON data={geoData.regions}        style={{ color: '#ff4444', weight: 4,   fillOpacity: 0 }} />}
         {geoData.provinces      && adminVisibility.provinces      && <GeoJSON data={geoData.provinces}      style={{ color: '#ffa500', weight: 2,   dashArray: '5, 10', fillOpacity: 0 }} />}
@@ -266,35 +266,40 @@ export default function MapComponent({
 
         {geoData.rivers && <RiverLayer data={geoData.rivers} />}
 
-        {/* Station pins — locations from DB, merged with sample data */}
-        {stationLocations.map(loc => {
-          const dbData = sampleDataMap[loc.station_id] ?? null
-          return (
-            <StationMarker
-              key={loc.station_id}
-              station={{
-                station_id: loc.station_id,
-                latitude:   loc.latitude,
-                longitude:  loc.longitude,
-                ...(dbData ?? {
-                  batch_id:   '—',
-                  pli:        0,
-                  risk_level: 'LOW',
-                  cr_mg_kg: null, mn_mg_kg: null, fe_mg_kg: null,
-                  co_mg_kg: null, ni_mg_kg: null, cu_mg_kg: null,
-                  zn_mg_kg: null, as_mg_kg: null, cd_mg_kg: null,
-                  hg_mg_kg: null, pb_mg_kg: null,
-                  igeo_cr: null, igeo_mn: null, igeo_fe: null,
-                  igeo_co: null, igeo_ni: null, igeo_cu: null,
-                  igeo_zn: null, igeo_as: null, igeo_cd: null,
-                  igeo_hg: null, igeo_pb: null,
-                })
-              }}
-              activeLayer={activeLayer}
-              zoom={zoom}
-            />
-          )
-        })}
+        {/* Station pins — locations strictly from lib/stations.ts, merged with sample data */}
+      {Object.entries(STATION_COORDINATES).map(([stationId, loc]) => {
+        // Skip stations that don't have valid map coordinates (e.g., MPB 1)
+        if (loc.latitude === null || loc.longitude === null) return null;
+
+        const dbData = sampleDataMap[stationId] ?? null;
+        
+        return (
+          <StationMarker
+            // This combined key forces Leaflet to completely rebuild the pin when batches switch
+            key={`${stationId}-${selectedBatch}`}
+            station={{
+              station_id: stationId,
+              latitude:   loc.latitude,
+              longitude:  loc.longitude,
+              ...(dbData ?? {
+                batch_id:   selectedBatch || '—',
+                pli:        0,
+                risk_level: 'LOW',
+                cr_mg_kg: null, mn_mg_kg: null, fe_mg_kg: null,
+                co_mg_kg: null, ni_mg_kg: null, cu_mg_kg: null,
+                zn_mg_kg: null, as_mg_kg: null, cd_mg_kg: null,
+                hg_mg_kg: null, pb_mg_kg: null,
+                igeo_cr: null, igeo_mn: null, igeo_fe: null,
+                igeo_co: null, igeo_ni: null, igeo_cu: null,
+                igeo_zn: null, igeo_as: null, igeo_cd: null,
+                igeo_hg: null, igeo_pb: null,
+              })
+            }}
+            activeLayer={activeLayer}
+            zoom={zoom}
+          />
+        )
+      })}
       </MapContainer>
 
       {/* Footer legend */}
@@ -330,10 +335,10 @@ export default function MapComponent({
 
         <div style={{ flex: 1 }} />
 
-        {/* Live count from DB */}
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#475569' }}>
-          {stationLocations.length} station{stationLocations.length !== 1 ? 's' : ''}
-        </span>
+        {/* Live count from STATION_COORDINATES (filtering out null coordinates like MPB 1) */}
+      <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', color: '#475569' }}>
+        {Object.values(STATION_COORDINATES).filter(loc => loc.latitude !== null).length} stations total
+      </span>
       </div>
 
       <style>{`
