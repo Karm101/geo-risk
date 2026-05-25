@@ -7,6 +7,8 @@ import StationMarker, { StationData } from './StationMarker'
 import MapAdminWidget, { AdminLayerKey } from './MapAdminWidget'
 import { useBatch } from '../context/BatchContext'
 import { STATION_COORDINATES } from '../lib/stations'
+import MapContextMenu from './MapContextMenu'
+import AddStationModal from './AddStationModal';
 import type { LayerType } from './StationMarker'
 import type { BasemapType } from './MapLayerWidget'
 import * as turf from '@turf/turf'
@@ -145,6 +147,9 @@ export default function MapComponent({
   const [hoverInfo, setHoverInfo] = useState({ region: '—', province: '—', municipality: '—', barangay: '—' })
   const [geoData, setGeoData]     = useState<any>({})
 
+  const [isAddStationOpen, setIsAddStationOpen] = useState(false);
+  const [newStationData, setNewStationData] = useState({ latitude: '', longitude: '', barangay: '' });
+
   const [stationLocations, setStationLocations] = useState<StationLocation[]>([])
   const [sampleData, setSampleData] = useState<StationData[]>([])
   const [adminVisibility, setAdminVisibility] = useState<Record<AdminLayerKey, boolean>>({
@@ -202,6 +207,11 @@ useEffect(() => {
 
   const config     = LAYER_CONFIG[activeLayer]
   const tileConfig = BASEMAP_TILES[activeBasemap]
+
+  const handleOpenStationDialog = (data) => {
+    setNewStationData(data);
+    setIsAddStationOpen(true);
+  };
 
   return (
     <div
@@ -273,6 +283,11 @@ useEffect(() => {
         <MouseTracker onMove={(lat, lng) => setCoords({ lat, lng })} />
         <HoverInfoTracker geoData={geoData} onLocationChange={setHoverInfo} />
 
+        <MapContextMenu 
+          barangayGeoJSON={geoData.barangays} 
+          onOpenStationDialog={handleOpenStationDialog} 
+        />
+
         <TileLayer url={tileConfig.url} attribution={tileConfig.attribution} />
 
         {geoData.regions        && adminVisibility.regions        && <GeoJSON data={geoData.regions}        style={{ color: '#ff4444', weight: 4,   fillOpacity: 0 }} />}
@@ -313,6 +328,49 @@ useEffect(() => {
           )
         })}
       </MapContainer>
+
+      {isAddStationOpen && (
+         <AddStationModal 
+            initialData={{
+              latitude: newStationData.latitude,
+              longitude: newStationData.longitude,
+              barangay: newStationData.barangay
+            }}
+            onClose={() => setIsAddStationOpen(false)}
+            onAdd={async (form) => {
+              const res = await fetch('/api/stations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  ...form,
+                  latitude: parseFloat(form.latitude),
+                  longitude: parseFloat(form.longitude),
+                  elevation: form.elevation ? parseFloat(form.elevation) : null,
+                  is_hidden: false
+                }),
+              });
+
+              if (!res.ok) {
+                throw new Error('Failed to save station to database');
+              }
+
+              setStationLocations(prev => [
+                ...prev, 
+                {
+                  station_id: form.station_id,
+                  river: form.river,
+                  barangay: form.barangay,
+                  latitude: parseFloat(form.latitude),
+                  longitude: parseFloat(form.longitude),
+                  elevation: form.elevation ? parseFloat(form.elevation) : null,
+                  is_hidden: false
+                }
+              ]);
+
+              setIsAddStationOpen(false);
+            }}
+         />
+      )}
 
       {/* Footer legend */}
       <div style={{
