@@ -5,8 +5,7 @@ import MapWrapper from '../components/MapWrapper'
 import { CoverageCard, SamplingPointsCard, LastUpdatedCard, BatchSelectorCard } from '../components/MapInfoCards'
 import MapLayerWidget from '../components/MapLayerWidget'
 import type { BasemapType } from '../maps/types' 
-
-export type LayerType = 'igeo' | 'pli' | 'risk';
+import type { LayerType } from '../maps/types'
 
 export default function InteractiveMaps() {
   const [activeLayer, setActiveLayer] = useState<LayerType>('pli');

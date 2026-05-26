@@ -25,7 +25,7 @@ export function GeoRiskSidebar() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Geo-RISK</h1>
-            <p className="text-xs text-gray-400">MGB Decision Support</p>
+            <p className="text-xs text-gray-400">MGB DSS</p>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
-import type { LayerType } from './StationMarker'
+import type { LayerType } from '../maps/types'
 import type { BasemapType } from './MapLayerWidget'
 
 const MapComponent = dynamic(() => import('./MapComponent'), {

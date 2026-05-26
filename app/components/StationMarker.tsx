@@ -2,11 +2,11 @@
 import { Marker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import { useMemo } from 'react'
+import type { LayerType } from '../maps/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'VERY HIGH'
-export type LayerType = 'pli' | 'igeo' | 'risk'
 
 export type StationData = {
   station_id: string

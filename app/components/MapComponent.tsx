@@ -9,7 +9,7 @@ import { useBatch } from '../context/BatchContext'
 import { STATION_COORDINATES } from '../lib/stations'
 import MapContextMenu from './MapContextMenu'
 import AddStationModal from './AddStationModal';
-import type { LayerType } from './StationMarker'
+import type { LayerType } from '../maps/types'
 import type { BasemapType } from './MapLayerWidget'
 import * as turf from '@turf/turf'
 
