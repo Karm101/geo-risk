@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useBatch } from '../context/BatchContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,6 +9,8 @@ import { Loader2 } from 'lucide-react';
 export default function GenerateReportButton() {
   const { selectedBatch } = useBatch();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const handleGenerateReport = async () => {
     if (!selectedBatch) {
@@ -108,7 +110,7 @@ export default function GenerateReportButton() {
   return (
     <button 
       onClick={handleGenerateReport}
-      disabled={isGenerating || !selectedBatch}
+      disabled={!mounted || isGenerating || !selectedBatch}
       className="w-full flex justify-center items-center gap-2 py-3 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
