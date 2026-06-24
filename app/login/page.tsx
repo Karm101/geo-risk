@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield, Database, AlertCircle, Loader2, Fingerprint } from 'lucide-react';
 import { createClient } from '@/app/lib/supabase/client';
 
-export default function Login() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirectTo') ?? '/dashboard';
@@ -14,7 +14,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [authStatus, setAuthStatus] = useState<string>('');
 
   const [dbStats, setDbStats] = useState({
     status: 'Connecting...',
@@ -47,28 +46,20 @@ export default function Login() {
     setIsLoading(true);
 
     if (!email.trim() || !password.trim()) {
-      setError('Please provide both MGB ID and password.');
+      setError('Please provide both email and password.');
       setIsLoading(false);
       return;
     }
-
-    setAuthStatus('Establishing secure connection...');
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setAuthStatus('Verifying clearance level...');
-    await new Promise(resolve => setTimeout(resolve, 800));
 
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
-      setError('Unauthorized access. Invalid MGB credentials detected.');
+      setError('Invalid credentials. Please try again.');
       setIsLoading(false);
-      setAuthStatus('');
       return;
     }
 
-    setAuthStatus('Access Granted. Decrypting dashboard...');
-    await new Promise(resolve => setTimeout(resolve, 600));
     router.push(redirectTo);
     router.refresh();
   };
@@ -121,23 +112,23 @@ export default function Login() {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-2">
               <Fingerprint className="w-6 h-6 text-rose-500" />
-              <h2 className="text-2xl font-bold text-white">System Access</h2>
+              <h2 className="text-2xl font-bold text-white">Sign In</h2>
             </div>
-            <p className="text-gray-400 font-mono text-sm">Authenticate to access Geo-RISK node</p>
+            <p className="text-gray-400 font-mono text-sm">Enter your MGB credentials to continue</p>
           </div>
 
           {/* DB Status Widget */}
-          <div className="mb-8 p-4 bg-gray-950/50 border border-gray-800 rounded-xl transition-colors duration-500">
+          <div className="mb-8 p-4 bg-gray-950/50 border border-gray-800 rounded-xl">
             <div className="flex items-center gap-2 mb-3">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
               <h3 className="font-mono text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                Node Status: {isConnected ? 'Online' : dbStats.status === 'Connecting...' ? 'Establishing Link...' : 'Offline'}
+                Database: {isConnected ? 'Online' : dbStats.status === 'Connecting...' ? 'Connecting...' : 'Offline'}
               </h3>
             </div>
             <div className="grid grid-cols-3 gap-4 text-xs font-mono">
               <div className="space-y-1">
                 <div className="text-gray-500">SERVER</div>
-                <div className={isConnected ? 'text-emerald-400' : 'text-rose-400'}>{isConnected ? 'SECURE' : 'UNREACHABLE'}</div>
+                <div className={isConnected ? 'text-emerald-400' : 'text-rose-400'}>{isConnected ? 'ONLINE' : 'OFFLINE'}</div>
               </div>
               <div className="space-y-1">
                 <div className="text-gray-500">LATENCY</div>
@@ -152,7 +143,7 @@ export default function Login() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="flex items-start gap-3 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-start gap-3 p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg">
                 <AlertCircle className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-rose-400">{error}</p>
               </div>
@@ -160,7 +151,7 @@ export default function Login() {
 
             <div>
               <label className="block text-xs font-mono font-medium text-gray-400 mb-2 uppercase tracking-wider">
-                MGB Email
+                Email
               </label>
               <input
                 type="email"
@@ -174,7 +165,7 @@ export default function Login() {
 
             <div>
               <label className="block text-xs font-mono font-medium text-gray-400 mb-2 uppercase tracking-wider">
-                Security Passkey
+                Password
               </label>
               <input
                 type="password"
@@ -189,25 +180,24 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading || !isConnected}
-              className="relative w-full py-3.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-500 transition-all shadow-lg shadow-rose-900/20 disabled:opacity-80 overflow-hidden group"
+              className="w-full py-3.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-500 transition-all shadow-lg shadow-rose-900/20 disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              <div className="flex items-center justify-center gap-2">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="font-mono text-sm tracking-wide">{authStatus}</span>
-                  </>
-                ) : (
-                  <span className="font-mono tracking-wider">
-                    {isConnected ? 'INITIALIZE LOGIN' : 'AWAITING CONNECTION'}
-                  </span>
-                )}
-              </div>
-              <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+              {isLoading
+                ? <><Loader2 className="w-5 h-5 animate-spin" /><span className="font-mono text-sm">Signing in...</span></>
+                : <span className="font-mono tracking-wider">{isConnected ? 'SIGN IN' : 'AWAITING CONNECTION'}</span>
+              }
             </button>
           </form>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

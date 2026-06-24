@@ -195,7 +195,7 @@ export default function DataTable() {
               <SortableHeader label="STATION ID" sortKey="station_id" />
               <SortableHeader label="RISK LEVEL" sortKey="risk_level" />
               <SortableHeader label="BATCH ID" sortKey="batch_id" />
-              <SortableHeader label="PLI" sortKey="pli" align="center" /> {/* PLI moved to 4th column */}
+              <SortableHeader label="PLI" sortKey="pli" align="center" />
               
               {METALS.map(metal => (
                 <SortableHeader 
@@ -244,7 +244,6 @@ export default function DataTable() {
                     <span className="text-xs text-gray-500 font-mono">{data.batch_id}</span>
                   </td>
                   
-                  {/* PLI Data Cell moved to match header */}
                   <td className="px-6 py-4 whitespace-nowrap text-center">
                     <span className="text-sm text-white font-bold">{data.pli !== null ? Number(data.pli).toFixed(2) : 'N/A'}</span>
                   </td>
