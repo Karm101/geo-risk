@@ -1,6 +1,7 @@
 'use client';
 import { useRouter, usePathname } from 'next/navigation';
-import { LayoutDashboard, Map, Database, MapPin, LogOut } from 'lucide-react';
+import { LayoutDashboard, Map, Database, MapPin, LogOut, BookOpen } from 'lucide-react';
+import { createClient } from '@/app/lib/supabase/client';
 
 export function GeoRiskSidebar() {
   const router = useRouter();
@@ -11,9 +12,15 @@ export function GeoRiskSidebar() {
     { id: 'maps',      icon: Map,             label: 'Interactive Maps', path: '/maps',      indent: false },
     { id: 'stations',  icon: MapPin,          label: 'Stations',         path: '/stations',  indent: true  },
     { id: 'data',      icon: Database,        label: 'Data Management',  path: '/data',      indent: false },
+    { id: 'glossary',  icon: BookOpen,        label: 'Glossary',         path: '/glossary',  indent: false },
   ];
 
-  const handleLogout = () => router.push('/');
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  };
 
   return (
     <aside className="w-64 bg-gray-900 border-r border-gray-800 min-h-screen flex flex-col">

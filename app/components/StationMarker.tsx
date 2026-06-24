@@ -186,7 +186,7 @@ function createPinIcon(
 function PopupContent({ station }: { station: StationData }) {
   const dominant = getDominantMetal(station)
   const riskColor = RISK_COLORS[station.risk_level]
-  const presentMetals = getPresentMetals(station)
+  const presentMetals = getPresentMetals(station).sort((a, b) => b.igeoValue - a.igeoValue)
   const maxIgeo = Math.max(...presentMetals.map(m => Math.abs(m.igeoValue)), 1)
 
   return (

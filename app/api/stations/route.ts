@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
 import { STATION_COORDINATES } from '../../lib/stations'
+import { createClient } from '@/app/lib/supabase/server'
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -11,6 +12,9 @@ const pool = new Pool({
 // Returns all non-deleted stations. DB primary, falls back to stations.ts.
 
 export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const result = await pool.query(
       `SELECT * FROM stations WHERE is_deleted = FALSE ORDER BY station_id ASC`
@@ -44,6 +48,9 @@ export async function GET() {
 // Add a new station.
 
 export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const body = await request.json()
     const { station_id, river, barangay, latitude, longitude, elevation } = body
@@ -74,6 +81,9 @@ export async function POST(request: Request) {
 // Body: { station_id, ...fields } or { station_id, is_hidden: true/false }
 
 export async function PATCH(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const body = await request.json()
     const { station_id, ...fields } = body
@@ -114,6 +124,9 @@ export async function PATCH(request: Request) {
 // Body: { station_id }
 
 export async function DELETE(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const body = await request.json()
     const { station_id } = body

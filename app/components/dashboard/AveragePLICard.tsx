@@ -1,6 +1,7 @@
 'use client'
 
 import { Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import GlossaryTooltip from '../GlossaryTooltip'
 
 interface AveragePLICardProps {
   averagePli: number;
@@ -49,7 +50,11 @@ export default function AveragePLICard({ averagePli, stationCount }: AveragePLIC
       </div>
       
       <div className="mt-auto">
-        <h3 className="text-gray-400 text-sm font-medium mb-2">Average PLI</h3>
+        <h3 className="text-gray-400 text-sm font-medium mb-2">
+          <GlossaryTooltip term="Pollution Load Index (PLI): measures overall heavy metal contamination at a site. PLI < 1 = unpolluted, 1–2 = moderate, > 2 = high, > 3 = very high. Calculated as the geometric mean of individual metal Contamination Factors.">
+            Average PLI
+          </GlossaryTooltip>
+        </h3>
         {/* Ensures it always shows 2 decimal places */}
         <p className="text-3xl font-bold text-white mb-1">{averagePli.toFixed(2)}</p>
         <p className="text-gray-400 text-sm">Across {stationCount} sampling stations</p>

@@ -1,10 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
+import { createClient } from '@/app/lib/supabase/server'
 
 // Initialize the Gemini client
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { summary } = await request.json();
 

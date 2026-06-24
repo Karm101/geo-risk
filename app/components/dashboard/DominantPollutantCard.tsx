@@ -1,6 +1,7 @@
 'use client'
 
 import { FlaskConical } from 'lucide-react'
+import GlossaryTooltip from '../GlossaryTooltip'
 
 interface DominantPollutantProps {
   metal: string
@@ -45,9 +46,18 @@ export default function DominantPollutantCard({ metal, symbol, igeo, classificat
       </div>
 
       <div className="mt-auto">
-        <h3 className="text-gray-400 text-sm font-medium mb-2">Dominant Pollutant</h3>
+        <h3 className="text-gray-400 text-sm font-medium mb-2">
+          <GlossaryTooltip term="Dominant Pollutant: the heavy metal with the highest average Geo-accumulation Index (Igeo) across all stations in the batch. This is the metal contributing most to contamination risk.">
+            Dominant Pollutant
+          </GlossaryTooltip>
+        </h3>
         <p className="text-3xl font-bold text-white mb-1">{metal}</p>
-        <p className="text-gray-400 text-sm">Avg. Igeo: {igeo.toFixed(2)}</p>
+        <p className="text-gray-400 text-sm">
+          <GlossaryTooltip term="Geo-accumulation Index (Igeo): compares measured metal concentration to natural background levels. Igeo < 0 = unpolluted, 0–1 = unpolluted to moderate, 1–2 = moderate, 2–3 = moderate to strong, 3–4 = strong, 4–5 = strong to extreme, > 5 = extreme.">
+            Avg. Igeo:
+          </GlossaryTooltip>
+          {' '}{igeo.toFixed(2)}
+        </p>
 
         <div className="mt-4 pt-4 border-t border-gray-700">
           <div className="flex items-center gap-3">

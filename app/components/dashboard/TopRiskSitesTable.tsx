@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useBatch } from '../../context/BatchContext'
 import { STATION_COORDINATES } from '../../lib/stations'
+import GlossaryTooltip from '../GlossaryTooltip'
 
 interface RiskSite {
   id: number
@@ -50,7 +51,11 @@ export default function TopRiskSitesTable() {
     <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-xl overflow-hidden">
       <div className="p-6 border-b border-gray-700">
         <h2 className="text-xl font-bold text-white">Top Risk Sites</h2>
-        <p className="text-gray-400 text-sm mt-1">Ranked by Pollution Load Index</p>
+        <p className="text-gray-400 text-sm mt-1">
+          <GlossaryTooltip term="Pollution Load Index (PLI): sites are ranked from highest to lowest PLI. A PLI above 1.0 means the site has measurable heavy metal contamination above natural background levels.">
+            Ranked by Pollution Load Index
+          </GlossaryTooltip>
+        </p>
       </div>
 
       <div className="overflow-auto">
@@ -63,8 +68,12 @@ export default function TopRiskSitesTable() {
             <thead className="bg-gray-900/50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Station</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">PLI</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Risk Level</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                  <GlossaryTooltip term="Pollution Load Index: < 1 = Low, 1–2 = Moderate, 2–3 = High, > 3 = Very High contamination.">PLI</GlossaryTooltip>
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                  <GlossaryTooltip term="Risk Level: derived from PLI. LOW = minimal concern, MODERATE = elevated metals, HIGH = significant contamination, VERY HIGH = severe contamination requiring immediate attention.">Risk Level</GlossaryTooltip>
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Coordinates</th>
               </tr>
             </thead>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Pool } from 'pg'
+import { createClient } from '@/app/lib/supabase/server'
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -62,6 +63,9 @@ function normalizeHeader(header: string): string | null {
 // ─── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const rawData = await request.json()
 
