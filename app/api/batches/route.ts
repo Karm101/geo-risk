@@ -14,14 +14,18 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const query = `
-      SELECT 
-        batch_id, 
-        MIN(created_at) as created_at, 
-        COUNT(*) as record_count 
-      FROM sampling_stations 
-      WHERE is_archived = FALSE 
-      GROUP BY batch_id 
-      ORDER BY created_at DESC
+      SELECT
+        batch_id,
+        river,
+        collection_start,
+        collection_end,
+        record_count,
+        uploaded_by,
+        uploaded_at,
+        uploaded_at as created_at
+      FROM upload_batches
+      WHERE is_archived = FALSE
+      ORDER BY uploaded_at DESC
     `
     const result = await pool.query(query)
     return NextResponse.json({ success: true, data: result.rows })
@@ -33,15 +37,21 @@ export async function GET() {
 
 // PATCH: Archive a specific batch
 export async function PATCH(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const { batchId } = await request.json()
-    
+
     if (!batchId) {
       return NextResponse.json({ success: false, error: "No batch ID provided" }, { status: 400 })
     }
 
-    const query = `UPDATE sampling_stations SET is_archived = TRUE WHERE batch_id = $1`
-    await pool.query(query, [batchId])
+    await pool.query(`UPDATE sampling_stations SET is_archived = TRUE WHERE batch_id = $1`, [batchId])
+    await pool.query(
+      `UPDATE upload_batches SET is_archived = TRUE, archived_by = $2, archived_at = now() WHERE batch_id = $1`,
+      [batchId, user.email ?? null]
+    )
 
     return NextResponse.json({ success: true, message: "Batch archived successfully" })
   } catch (error) {

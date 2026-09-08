@@ -67,9 +67,15 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
-    const rawData = await request.json()
+    const body = await request.json()
+    // Payload is either a plain array of rows (legacy) or
+    // { rows, river, collectionStart, collectionEnd }.
+    const rawData = Array.isArray(body) ? body : body.rows
+    const river: string | null = Array.isArray(body) ? null : (body.river ?? null)
+    const collectionStart: string | null = Array.isArray(body) ? null : (body.collectionStart ?? null)
+    const collectionEnd: string | null = Array.isArray(body) ? null : (body.collectionEnd ?? null)
 
-    console.log("SERVER SEES ROW 1 AS:", rawData[0])
+    console.log("SERVER SEES ROW 1 AS:", rawData?.[0])
 
     if (!Array.isArray(rawData) || rawData.length === 0) {
       return NextResponse.json({ success: false, error: 'Empty or invalid CSV data' }, { status: 400 })
@@ -99,61 +105,79 @@ export async function POST(request: Request) {
       if (canonical) metalKeyMap[canonical] = key
     }
 
-    const batchId = `batch_${Date.now()}`
-    const processedRecords = []
+    const batchId = `batch_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`
+    const processedRecords: any[] = []
 
-    for (const row of rawData) {
-      if (!row['Station_ID']) continue
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
 
-      // ── Compute CF and clean values for present metals only ───────────────
-      const cleanValues: Record<string, number | null> = {}
-      const cfs: number[] = []
+      for (const row of rawData) {
+        if (!row['Station_ID']) continue
 
-      for (const metal of presentMetals) {
-        const rawVal = row[metalKeyMap[metal]]
-        const clean = scrubData(rawVal)
-        cleanValues[metal] = clean
-        if (clean !== null && clean > 0) {
-          cfs.push(clean / BACKGROUND[metal])
+        // ── Compute CF and clean values for present metals only ───────────────
+        const cleanValues: Record<string, number | null> = {}
+        const cfs: number[] = []
+
+        for (const metal of presentMetals) {
+          const rawVal = row[metalKeyMap[metal]]
+          const clean = scrubData(rawVal)
+          cleanValues[metal] = clean
+          if (clean !== null && clean > 0) {
+            cfs.push(clean / BACKGROUND[metal])
+          }
         }
+
+        if (cfs.length === 0) continue
+
+        // ── PLI: geometric mean of CFs for present metals ─────────────────────
+        const product = cfs.reduce((acc, cf) => acc * cf, 1)
+        const pli = Math.pow(product, 1 / cfs.length)
+        const riskLevel = calcRiskLevel(pli)
+
+        // ── Build dynamic INSERT ───────────────────────────────────────────────
+        // Always insert: batch_id, station_id, pli, risk_level
+        // Only include metal/igeo columns that are present in this CSV
+        const columns: string[] = ['batch_id', 'station_id']
+        const values: any[] = [batchId, row['Station_ID']];
+
+        for (const metal of presentMetals) {
+          // Concentration column
+          columns.push(METAL_COLUMNS[metal])
+          values.push(cleanValues[metal])
+
+          // Igeo column
+          columns.push(IGEO_COLUMNS[metal])
+          values.push(calcIgeo(cleanValues[metal], BACKGROUND[metal]))
+        }
+
+        columns.push('pli', 'risk_level')
+        values.push(pli, riskLevel)
+
+        // Build $1, $2, ... placeholders
+        const placeholders = values.map((_, i) => `$${i + 1}`).join(', ')
+        const query = `
+          INSERT INTO sampling_stations (${columns.join(', ')})
+          VALUES (${placeholders})
+          RETURNING *
+        `
+
+        const dbResult = await client.query(query, values)
+        processedRecords.push(dbResult.rows[0])
       }
 
-      if (cfs.length === 0) continue
+      await client.query(
+        `INSERT INTO upload_batches (batch_id, river, collection_start, collection_end, record_count, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [batchId, river, collectionStart, collectionEnd, processedRecords.length, user.email ?? null]
+      )
 
-      // ── PLI: geometric mean of CFs for present metals ─────────────────────
-      const product = cfs.reduce((acc, cf) => acc * cf, 1)
-      const pli = Math.pow(product, 1 / cfs.length)
-      const riskLevel = calcRiskLevel(pli)
-
-      // ── Build dynamic INSERT ───────────────────────────────────────────────
-      // Always insert: batch_id, station_id, pli, risk_level
-      // Only include metal/igeo columns that are present in this CSV
-      const columns: string[] = ['batch_id', 'station_id']
-      const values: any[] = [batchId, row['Station_ID']];
-
-      for (const metal of presentMetals) {
-        // Concentration column
-        columns.push(METAL_COLUMNS[metal])
-        values.push(cleanValues[metal])
-
-        // Igeo column
-        columns.push(IGEO_COLUMNS[metal])
-        values.push(calcIgeo(cleanValues[metal], BACKGROUND[metal]))
-      }
-
-      columns.push('pli', 'risk_level')
-      values.push(pli, riskLevel)
-
-      // Build $1, $2, ... placeholders
-      const placeholders = values.map((_, i) => `$${i + 1}`).join(', ')
-      const query = `
-        INSERT INTO sampling_stations (${columns.join(', ')})
-        VALUES (${placeholders})
-        RETURNING *
-      `
-
-      const dbResult = await pool.query(query, values)
-      processedRecords.push(dbResult.rows[0])
+      await client.query('COMMIT')
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
     }
 
     return NextResponse.json({

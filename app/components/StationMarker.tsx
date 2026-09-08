@@ -307,9 +307,14 @@ export default function StationMarker({ station, activeLayer, zoom }: Props) {
 
   const baseSize = getPinSize(station.risk_level)
 
-  const pliValue = Number(station.pli) || 0
-  const pliMultiplier = 1 + (Math.min(pliValue, 5) * 0.04) 
-  const intensityBaseSize = baseSize * pliMultiplier
+  // Diameter encodes the NUMBER OF HEAVY METAL ELEMENTS present at the station
+  // (not PLI — PLI/risk is already encoded via color, so this avoids the
+  // redundant double-encoding flagged in GIS review). Scale is linear across
+  // the 1-11 possible metals, clamped to a modest 1.0x-1.5x range so size stays
+  // legible at both ends.
+  const elementCount = getPresentMetals(station).length
+  const elementMultiplier = 1 + (Math.min(Math.max(elementCount - 1, 0), 10) * 0.05)
+  const intensityBaseSize = baseSize * elementMultiplier
 
   const zoomFactor = zoom / 11
   const clampedZoom = Math.min(Math.max(zoomFactor, 0.7), 1.5)
@@ -327,8 +332,7 @@ export default function StationMarker({ station, activeLayer, zoom }: Props) {
 
   const icon = useMemo(
     () => createPinIcon(color, scaledSize, shape, station.station_id, sublabel, dimmed, zoom >= MIN_ZOOM_FOR_LABELS),
-    // 👇 Ensure station.pli is in the dependency array so the intensity math recalculates!
-    [color, scaledSize, shape, station.station_id, station.pli, sublabel, dimmed, zoom] 
+    [color, scaledSize, shape, station.station_id, elementCount, sublabel, dimmed, zoom]
   )
 
   return (

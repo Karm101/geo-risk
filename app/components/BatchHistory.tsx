@@ -91,8 +91,9 @@ export default function BatchHistory() {
        </div>
 
        <div className="grid grid-cols-12 gap-4 p-4 text-xs font-semibold text-gray-400 border-b border-gray-700 bg-gray-900/20 uppercase tracking-wider">
-          <div className="col-span-5 pl-2">History Name</div>
-          <div className="col-span-3">Date Added</div>
+          <div className="col-span-4 pl-2">History Name</div>
+          <div className="col-span-2">Date Added</div>
+          <div className="col-span-2">Uploaded By</div>
           <div className="col-span-2">Records</div>
           <div className="col-span-2 text-right pr-2">Actions</div>
        </div>
@@ -120,14 +121,21 @@ export default function BatchHistory() {
                         }
                      `}
                   >
-                     <div className="col-span-5 font-medium text-gray-200 flex items-center gap-3">
+                     <div className="col-span-4 font-medium text-gray-200 flex items-center gap-3">
                         <Layers className={`shrink-0 w-4 h-4 ${isSelected ? 'text-blue-400' : 'text-gray-600'}`} />
-                        <span className="truncate" title={batch.batch_id}>{batch.batch_id}</span>
+                        <div className="min-w-0">
+                           <span className="truncate block" title={batch.batch_id}>{batch.batch_id}</span>
+                           {batch.river && <span className="text-xs text-gray-500 truncate block">{batch.river}</span>}
+                        </div>
                      </div>
 
-                     <div className="col-span-3 text-gray-400 text-sm flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 opacity-70"/> 
+                     <div className="col-span-2 text-gray-400 text-sm flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 opacity-70"/>
                         {new Date(batch.created_at).toLocaleDateString()}
+                     </div>
+
+                     <div className="col-span-2 text-gray-400 text-sm truncate" title={batch.uploaded_by || 'Unknown'}>
+                        {batch.uploaded_by || '—'}
                      </div>
 
                      <div className="col-span-2 text-gray-400 text-sm flex items-center gap-2">

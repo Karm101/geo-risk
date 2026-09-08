@@ -236,6 +236,89 @@ export default function MapLayerWidget({
             })}
           </div>
         </div>
+
+        {/* Divider */}
+        <div
+          style={{
+            height: '1px',
+            background: '#1e2535',
+            margin: '12px 0',
+          }}
+        />
+
+        {/* ── Marker size legend ───────────────────────────────────── */}
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '10px',
+            }}
+          >
+            <div
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#334155',
+              }}
+            />
+            <span
+              style={{
+                fontFamily: "'Space Mono', monospace",
+                fontSize: '9px',
+                letterSpacing: '0.14em',
+                color: '#334155',
+                textTransform: 'uppercase',
+              }}
+            >
+              Marker Size
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '6px', padding: '0 4px 4px' }}>
+            {[1, 4, 7, 11].map((count) => {
+              // Mirrors StationMarker.tsx: baseSize(14) * (1 + min(max(count-1,0),10) * 0.05)
+              const multiplier = 1 + Math.min(Math.max(count - 1, 0), 10) * 0.05
+              const dotSize = Math.round(14 * multiplier)
+              return (
+                <div key={count} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                  <div
+                    style={{
+                      width: `${dotSize}px`,
+                      height: `${dotSize}px`,
+                      borderRadius: '50%',
+                      background: '#475569',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: "'Space Mono', monospace",
+                      fontSize: '8px',
+                      color: '#64748b',
+                    }}
+                  >
+                    {count === 11 ? '11+' : count}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          <p
+            style={{
+              fontFamily: "'Space Mono', monospace",
+              fontSize: '8px',
+              lineHeight: 1.5,
+              color: '#475569',
+              marginTop: '8px',
+            }}
+          >
+            Size = heavy metals detected · Color = PLI risk level
+          </p>
+        </div>
       </div>
     </div>
   )
