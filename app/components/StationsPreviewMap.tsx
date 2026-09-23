@@ -54,8 +54,8 @@ export default function StationsPreviewMap({ stations, selectedId, onSelect }: P
       zoomControl={false}
     >
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; CartoDB'
+        url={`https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png${process.env.NEXT_PUBLIC_CARTO_API_KEY ? `?key=${process.env.NEXT_PUBLIC_CARTO_API_KEY}` : ''}`}
+        attribution='&copy; CARTO, &copy; OpenStreetMap contributors'
       />
 
       <BoundsFitter stations={stations} selectedId={selectedId} />

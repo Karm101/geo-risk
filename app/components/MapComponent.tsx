@@ -84,10 +84,12 @@ const ADMIN_LAYERS = {
   barangays:      '/mindanao_barangays.geojson',
 } as const
 
+const CARTO_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY
+
 const BASEMAP_TILES: Record<BasemapType, { url: string; attribution: string }> = {
   dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+    url: `https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png${CARTO_KEY ? `?key=${CARTO_KEY}` : ''}`,
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
   topo: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
