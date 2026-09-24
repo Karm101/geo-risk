@@ -29,6 +29,7 @@ export async function GET() {
         latitude:   loc.latitude,
         longitude:  loc.longitude,
         elevation:  loc.elevation,
+        flow_position: null,
         is_hidden:  false,
         is_deleted: false,
         created_at: null,
@@ -53,17 +54,17 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     const body = await request.json()
-    const { station_id, river, barangay, latitude, longitude, elevation } = body
+    const { station_id, river, barangay, latitude, longitude, elevation, flow_position } = body
 
     if (!station_id?.trim()) {
       return NextResponse.json({ success: false, error: 'station_id is required' }, { status: 400 })
     }
 
     const result = await pool.query(
-      `INSERT INTO stations (station_id, river, barangay, latitude, longitude, elevation)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO stations (station_id, river, barangay, latitude, longitude, elevation, flow_position)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [station_id.trim(), river ?? null, barangay ?? null, latitude ?? null, longitude ?? null, elevation ?? null]
+      [station_id.trim(), river ?? null, barangay ?? null, latitude ?? null, longitude ?? null, elevation ?? null, flow_position ?? null]
     )
 
     return NextResponse.json({ success: true, data: result.rows[0] })
@@ -92,7 +93,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'station_id is required' }, { status: 400 })
     }
 
-    const allowed = ['river', 'barangay', 'latitude', 'longitude', 'elevation', 'is_hidden']
+    const allowed = ['river', 'barangay', 'latitude', 'longitude', 'elevation', 'is_hidden', 'flow_position']
     const updates = Object.entries(fields).filter(([k]) => allowed.includes(k))
 
     if (updates.length === 0) {

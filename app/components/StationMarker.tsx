@@ -8,11 +8,14 @@ import type { LayerType } from '../maps/types'
 
 type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'VERY HIGH'
 
+export type FlowPosition = 'upstream' | 'midstream' | 'downstream' | null
+
 export type StationData = {
   station_id: string
   batch_id: string
   latitude: number
   longitude: number
+  flow_position?: FlowPosition
   pli: number
   risk_level: RiskLevel
   cr_mg_kg: number | null
@@ -214,6 +217,17 @@ function PopupContent({ station }: { station: StationData }) {
           border: `1px solid ${riskColor}50`,
         }}>{station.risk_level}</span>
       </div>
+
+      {/* Flow Position (upstream/midstream/downstream) */}
+      {station.flow_position && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#94a3b8' }}>
+          <span>River Position</span>
+          <span style={{ color: '#e2e8f0', fontWeight: 700, textTransform: 'capitalize' }}>
+            {station.flow_position === 'upstream' ? '↑ ' : station.flow_position === 'downstream' ? '↓ ' : '↕ '}
+            {station.flow_position}
+          </span>
+        </div>
+      )}
 
       {/* PLI Score */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#94a3b8' }}>

@@ -14,6 +14,7 @@ type Station = {
   latitude:   number | null
   longitude:  number | null
   elevation:  number | null
+  flow_position: 'upstream' | 'midstream' | 'downstream' | null
   is_hidden:  boolean
   is_deleted: boolean
   created_at: string | null
@@ -26,11 +27,12 @@ type FormState = {
   latitude:   string
   longitude:  string
   elevation:  string
+  flow_position: string
 }
 
 const EMPTY_FORM: FormState = {
   station_id: '', river: '', barangay: '',
-  latitude: '', longitude: '', elevation: '',
+  latitude: '', longitude: '', elevation: '', flow_position: '',
 }
 
 // ─── Mini map (SSR-disabled) ──────────────────────────────────────────────────
@@ -107,6 +109,7 @@ function EditRow({ station, onSave, onCancel }: {
     latitude:  station.latitude   != null ? String(station.latitude)  : '',
     longitude: station.longitude  != null ? String(station.longitude) : '',
     elevation: station.elevation  != null ? String(station.elevation) : '',
+    flow_position: station.flow_position ?? '',
   })
 
   const inp = (key: keyof typeof form) => (
@@ -135,6 +138,23 @@ function EditRow({ station, onSave, onCancel }: {
       <td style={tdStyle}>{inp('longitude')}</td>
       <td style={tdStyle}>{inp('elevation')}</td>
       <td style={tdStyle}>
+        <select
+          value={form.flow_position}
+          onChange={e => setForm(f => ({ ...f, flow_position: e.target.value }))}
+          style={{
+            background: '#0a0d12', border: '1px solid #334155',
+            borderRadius: '6px', padding: '4px 8px',
+            color: '#e2e8f0', fontFamily: "'Space Mono', monospace",
+            fontSize: '11px', width: '100%',
+          }}
+        >
+          <option value="">—</option>
+          <option value="upstream">Upstream</option>
+          <option value="midstream">Midstream</option>
+          <option value="downstream">Downstream</option>
+        </select>
+      </td>
+      <td style={tdStyle}>
         <div style={{ display: 'flex', gap: '6px' }}>
           <IconBtn onClick={() => onSave({
             river:     form.river     || null,
@@ -142,6 +162,7 @@ function EditRow({ station, onSave, onCancel }: {
             latitude:  form.latitude  ? parseFloat(form.latitude)  : null,
             longitude: form.longitude ? parseFloat(form.longitude) : null,
             elevation: form.elevation ? parseFloat(form.elevation) : null,
+            flow_position: (form.flow_position || null) as any,
           })} color="#22c55e" title="Save">
             <Check className="w-3.5 h-3.5" />
           </IconBtn>
@@ -226,6 +247,7 @@ export default function StationsPage() {
         latitude:   form.latitude  ? parseFloat(form.latitude)  : null,
         longitude:  form.longitude ? parseFloat(form.longitude) : null,
         elevation:  form.elevation ? parseFloat(form.elevation) : null,
+        flow_position: form.flow_position || null,
       }),
     })
     const json = await res.json()
@@ -331,7 +353,7 @@ export default function StationsPage() {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
-                          {['Station', 'River', 'Barangay', 'Lat', 'Lng', 'Elev (m)', 'Actions'].map(h => (
+                          {['Station', 'River', 'Barangay', 'Lat', 'Lng', 'Elev (m)', 'Flow Position', 'Actions'].map(h => (
                             <th key={h} style={thStyle}>{h}</th>
                           ))}
                         </tr>
@@ -381,6 +403,12 @@ export default function StationsPage() {
                               <td style={tdStyle}><span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#64748b' }}>{station.latitude?.toFixed(4) ?? '—'}</span></td>
                               <td style={tdStyle}><span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#64748b' }}>{station.longitude?.toFixed(4) ?? '—'}</span></td>
                               <td style={tdStyle}><span style={{ fontFamily: "'Space Mono', monospace", fontSize: '11px', color: '#64748b' }}>{station.elevation ?? '—'}</span></td>
+                              <td style={tdStyle}>
+                                {station.flow_position
+                                  ? <span style={{ fontFamily: "'Space Mono', monospace", fontSize: '10px', textTransform: 'capitalize', color: '#94a3b8' }}>{station.flow_position}</span>
+                                  : <span style={{ color: '#334155' }}>—</span>
+                                }
+                              </td>
                               <td style={tdStyle}>
                                 {!station.is_deleted && (
                                   <div style={{ display: 'flex', gap: '6px' }}>

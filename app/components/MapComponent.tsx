@@ -22,6 +22,7 @@ type StationLocation = {
   latitude:   number
   longitude:  number
   elevation:  number | null
+  flow_position: 'upstream' | 'midstream' | 'downstream' | null
   is_hidden:  boolean
 }
 
@@ -310,6 +311,7 @@ useEffect(() => {
                 station_id: loc.station_id,
                 latitude:   loc.latitude,
                 longitude:  loc.longitude,
+                flow_position: loc.flow_position ?? null,
                 ...(dbData ?? {
                   batch_id:   selectedBatch || '—',
                   pli:        0,
@@ -365,6 +367,7 @@ useEffect(() => {
                   latitude: parseFloat(form.latitude),
                   longitude: parseFloat(form.longitude),
                   elevation: form.elevation ? parseFloat(form.elevation) : null,
+                  flow_position: (form as any).flow_position || null,
                   is_hidden: false
                 }
               ]);

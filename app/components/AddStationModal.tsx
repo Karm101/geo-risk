@@ -10,6 +10,7 @@ export interface FormState {
   latitude: string;
   longitude: string;
   elevation: string;
+  flow_position: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -18,7 +19,8 @@ const EMPTY_FORM: FormState = {
   barangay: '',
   latitude: '',
   longitude: '',
-  elevation: ''
+  elevation: '',
+  flow_position: ''
 };
 
 export default function AddStationModal({ 
@@ -104,6 +106,30 @@ export default function AddStationModal({
           {field('latitude',  '7.0858')}
           {field('longitude', '126.023')}
           {field('elevation', '320')}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+          <label style={{
+            fontFamily: "'Space Mono', monospace", fontSize: '9px',
+            color: '#475569', textTransform: 'uppercase', letterSpacing: '0.1em',
+          }}>
+            Flow Position
+          </label>
+          <select
+            value={form.flow_position}
+            onChange={e => setForm(f => ({ ...f, flow_position: e.target.value }))}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: '#0a0d12', border: '1px solid #1e2535',
+              borderRadius: '8px', padding: '8px 12px',
+              color: '#e2e8f0', fontFamily: "'Space Mono', monospace", fontSize: '11px',
+            }}
+          >
+            <option value="">Unknown</option>
+            <option value="upstream">Upstream</option>
+            <option value="midstream">Midstream</option>
+            <option value="downstream">Downstream</option>
+          </select>
         </div>
 
         {error && (
